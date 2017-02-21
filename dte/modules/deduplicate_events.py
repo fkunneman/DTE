@@ -32,7 +32,7 @@ class DeduplicateEventsTask(Task):
     overlap_threshold = Parameter()
 
     def out_deduplicated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.integrated', addextension='.deduplicated')
+        return self.outputfrominput(inputformat='events', stripextension='.integrated', addextension='.integrated.deduplicated')
 
     def run(self):
 

@@ -16,36 +16,31 @@ from dte.classes import event
 ################################################################################
 
 @registercomponent
-class IntegrateEvents(WorkflowComponent):
+class IntegrateEvents(StandardWorkflowComponent):
 
     current_events = Parameter()
-    new_events = Parameter()
-
     overlap_threshold = Parameter(default = 0.2)
 
     def accepts(self):
-        return [ ( InputFormat(self, format_id='current_events', extension='.integrated', inputparameter='current_events'), InputFormat(self, format_id='new_events', extension='.events', inputparameter='new_events') ) ]
+        return InputFormat(self, format_id='events', extension='.events')
 
-    def setup(self, workflow, input_feeds):
-        integrator = workflow.new_task('merge_events', IntegrateEventsTask, autopass=False, overlap_threshold=self.overlap_threshold)
-        integrator.in_current_events = input_feeds['current_events']
-        integrator.in_new_events = input_feeds['new_events']
-        return integrator
+    def autosetup(self)
+        return IntegrateEventsTask
 
 class IntegrateEventsTask(Task):
 
-    in_current_events = InputSlot()
-    in_new_events = InputSlot()
+    in_events = InputSlot()
 
+    current_events = Parameter()
     overlap_threshold = Parameter()
 
     def out_integrated_events(self):
-        return self.outputfrominput(inputformat='new_events', stripextension='.events', addextension='.events.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.events.integrated')
 
     def run(self):
 
         # read in current events
-        with open(self.in_current_events().path, 'r', encoding = 'utf-8') as file_in:
+        with open(self.current_events(), 'r', encoding = 'utf-8') as file_in:
             current_eventdicts = json.loads(file_in.read())
         current_event_objs = []
         for ed in current_eventdicts:
@@ -58,7 +53,7 @@ class IntegrateEventsTask(Task):
         merger.add_events(current_event_objs)
 
         # read in new events
-        with open(self.in_new_events().path, 'r', encoding = 'utf-8') as file_in:
+        with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             new_eventdicts = json.loads(file_in.read())
         new_event_objs = []
         for ed in new_eventdicts:

@@ -1,5 +1,7 @@
 
 import json
+import re
+import numpy
 from collections import defaultdict
 
 from dte.classes.tweet import Tweet
@@ -69,57 +71,67 @@ class Event:
         self.tweets.extend([tweet for tweet in event.tweets if not tweet.id in tweetids])
         self.mentions = len(self.tweets)
 
+    def entity_overlap(e1,e2):
+        if set(e1.split()) & set(s2.split()):
+            return True
+        else:
+            return False
+
+    def merge_entities(e1,e2):
+        if e1.strip('#') == e2.strip('#'): # only difference is hashtag
+            if '#' in e1:
+                return e1
+            else:
+                return e2
+        elif not False in [part in e1.strip('#').split() for part in e2.strip('#').split()]: # e2 is n-gram subset of e1
+            return e1
+        elif not False in [part in e2.strip('#').split() for part in e1.strip('#').split()]: # e1 is n-gram subset of e2
+            return e2
+
+    def resolve_overlap_entities(self):
+        none_overlapping_entities = [self.entities[0]]
+        for entity2 in self.entities[1:]:
+            overlap = False
+            for entity1 in none_overlapping_entities:
+                if self.entity_overlap(entity1,entity2):
+                    entity1 = self.merge_entities(entity1.strip('#'),entity2.strip('#'))
+                    overlap = True
+                    break
+            if not overlap:
+                non_everlapping_entities.append(entity2)
+        self.entities = none_overlapping_entities
+
+    def order_entities(self):
+        entity_ranks = defaultdict(list)
+        # for every tweet
+        for tweet in self.tweets:
+            # rank the present entities by position (entity that is mentioned first is ranked 1)
+            matching_entities = []
+            for entity in self.entities:
+                if re.search(re.escape(entity),tweet.text):
+                    entity_position = re.search(re.escape(entity),tweet.text).span()[0]
+                    matching_entities.append([entity,entity_position])
+            sorted_matches = sorted(matching_entities, key = lambda k : k[1])
+            for i,entity in enumerate(sorted_matches):
+                entity_ranks[entity].append(i)
+        # order the entities by their mean ranks
+        entities_avg_position_rank = [[entity,numpy.mean(entity_ranks[entity])] for entity in self.entities]
+        sorted_entities = sorted(entities_avg_position_rank,key = lambda k : k[1])
+        self.entities = [entity[0] for entity in sorted_entities]
+
+    def rank_tweets(self):
+        self.tweets = sorted(self.tweets,key = lambda k : k.datetime,reverse=True)
+
+
     # def set_periodics(self,events):
     #     self.periodics = events
 
-    # def resolve_overlap_entities(self):
-    #     self.entities = calculations.resolve_overlap_entities(sorted(self.entities,key = lambda x : x[1],reverse=True))
-    #     new_entities = []
-    #     i = 0
-    #     while i < len(entities):
-    #         one = False
-    #         if i+1 >= len(entities):
-    #             one = True 
-    #         elif entities[i][1] > entities[i+1][1]:
-    #             one = True
-    #         if one:
-    #             overlap = False
-    #             for e in new_entities:
-    #                 if has_overlap_entity(re.sub('#','',entities[i][0]),re.sub('#','',e[0])):
-    #                     overlap = True    
-    #             if not overlap:
-    #                 new_entities.append(entities[i])
-    #             i+=1
-    #         else: #entities have the same score
-    #             #make list of entities with similar score
-    #             sim_entities = [entities[i],entities[i+1]]
-    #             j = i+2
-    #             while j < len(entities):
-    #                 if entities[j][1] == entities[i][1]: 
-    #                     sim_entities.append(entities[j])
-    #                     j+=1
-    #                 else:
-    #                     break
-    #             i=j
-    #             #rank entities by length
-    #             sim_entities = sorted(sim_entities,key = lambda x : len(x[0].split(" ")), reverse=True)
-    #             for se in sim_entities:
-    #                 overlap = False
-    #                 for e in new_entities:
-    #                     if has_overlap_entity(se[0].replace("_"," ").replace("#",""),e[0].replace("_"," ").replace("#","")):
-    #                         overlap = True
-    #                 if not overlap:
-    #                     new_entities.append(se)
-    #     return new_entities
 
 
-    # def order_entities(self):
-    #     new_entities = calculations.order_entities([x[0] for x in self.entities],[x.text for x in self.tweets])
-    #     new_entities_score = []
-    #     for x in new_entities:
-    #         entity_score = [y for y in self.entities if y[0] == x][0]
-    #         new_entities_score.append(entity_score)
-    #     self.entities = new_entities_score
+
+
+
+
 
     # def add_ttratio(self):
     #     tokens = []
@@ -133,57 +145,4 @@ class Event:
     #     for word_score in sorted_word_tfidf:
     #         self.word_tfidf[word_score[0]] = word_score[1]
 
-    # def rank_tweets(self,rep = False):
-    #     tweet_score = []
-    #     exclude = set(string.punctuation)
-    #     for tweet in self.tweets:
-    #         scores = []
-    #         for chunk in tweet.chunks:
-    #             chunk = chunk.replace('#','').replace('-',' ')
-    #             chunk = ''.join(ch for ch in chunk if ch not in exclude)
-    #             for word in chunk.split():
-    #                 try:
-    #                     wordscore = self.word_tfidf[word]
-    #                     scores.append(wordscore)
-    #                 except KeyError:
-    #                     continue
-    #         score = numpy.mean(scores)
-    #         tweet_score.append((tweet.text,score))
-    #     if rep:
-    #         self.reptweets = []
-    #         noadds = []
-    #         ht = re.compile(r"^#")
-    #         usr = re.compile(r"^@")
-    #         url = re.compile(r"^http")
-    #         for x in sorted(tweet_score,key = lambda x : x[1],reverse=True):
-    #             add = True
-    #             content = [x for x in x[0].split() if not ht.search(x) and not usr.search(x) and not url.search(x)]
-    #             try:
-    #                 for rt in self.reptweets:
 
-    #                     overlap = len(set(content) & set(rt[1])) / max(len(set(content)),len(set(rt[1])))
-    #                     if overlap > 0.8:              
-    #                         add = False
-    #                         noadds.append(x[0])
-    #                         break
-    #                 if add:
-    #                     self.reptweets.append((x[0],content))
-    #                 if len(self.reptweets) == 5:
-    #                     break
-    #             except:
-    #                 break
-    #         self.reptweets = [x[0] for x in self.reptweets]
-    #         if len(self.reptweets) < 5:
-    #             for rt in noadds:
-    #                 self.reptweets.append(rt)
-    #                 if len(self.reptweets) == 5:
-    #                     break
-    #         nreptweets = []
-    #         for x in self.reptweets:
-    #             tweetwords = []
-    #             for word in x.split():
-    #                 if url.search(word):
-    #                     word = "URL"
-    #                 tweetwords.append(word)
-    #             nreptweets.append(" ".join(tweetwords))
-    #         self.reptweets = nreptweets
