@@ -4,8 +4,8 @@ from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputC
 
 import json
 
-from functions import entity_extractor, helpers
-from classes import tweet, commonness
+from dte.functions import entity_extractor, helpers
+from dte.classes import tweet, commonness
 
 class AggregateTweetsTask(Task):
 

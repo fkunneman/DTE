@@ -4,9 +4,9 @@ from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputC
 
 import json
 
-from functions import dutch_timex_extractor
-from classes import tweet
-from modules.tokenize_instances import Tokenize
+from dte.functions import dutch_timex_extractor
+from dte.classes import tweet
+from dte.modules.tokenize_instances import Tokenize
 
 class ExtractDaterefTask(Task):
 

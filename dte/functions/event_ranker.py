@@ -3,8 +3,8 @@ from collections import Counter, defaultdict
 from itertools import product
 import math
 
-from classes.event import Event
-from functions import helpers
+from dte.classes.event import Event
+from dte.functions import helpers
 
 class EventRanker:
 

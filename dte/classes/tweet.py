@@ -3,7 +3,7 @@ import json
 import re
 import datetime
 
-from functions import time_functions
+from dte.functions import time_functions
 
 class Tweet:
     """

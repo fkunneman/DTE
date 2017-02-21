@@ -7,9 +7,8 @@ import os
 import datetime 
 from collections import defaultdict
 
-from functions import event_ranker, helpers
-from classes import event, tweet
-
+from dte.functions import event_ranker, helpers
+from dte.classes import event, tweet
 
 ################################################################################
 ###Event extraction by slider

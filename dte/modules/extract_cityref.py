@@ -4,9 +4,9 @@ from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputC
 
 import json
 
-from functions import cityref_extractor, helpers
-from classes import tweet
-from modules.extract_daterefs import ExtractDateref 
+from dte.functions import cityref_extractor, helpers
+from dte.classes import tweet
+from dte.modules.extract_daterefs import ExtractDateref 
 
 class ExtractCityrefTask(Task):
 

@@ -2,7 +2,7 @@
 import re
 import datetime
 
-import time_functions
+from dte.functions import time_functions
 
 class Dutch_timex_extractor:
 

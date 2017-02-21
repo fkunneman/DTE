@@ -2,8 +2,8 @@
 import json
 from collections import defaultdict
 
-from classes.tweet import Tweet
-from functions import time_functions
+from dte.classes.tweet import Tweet
+from dte.functions import time_functions
 
 class Event:
     """
