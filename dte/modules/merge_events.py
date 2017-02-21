@@ -7,8 +7,8 @@ import os
 import datetime 
 from collections import defaultdict
 
-from functions import event_merger
-from classes import event
+from dte.functions import event_merger
+from dte.classes import event
 
 
 ################################################################################

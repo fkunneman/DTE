@@ -1,12 +1,10 @@
 
-
-
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter
 
 import ucto
 import json
 
-from modules.filter_tweets import FilterTweets
+from dte.modules.filter_tweets import FilterTweets
 
 class Tokenize_instances(Task):
     """"Tokenizes a file one document per line"""

@@ -4,9 +4,9 @@ from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputC
 
 import json
 
-from functions import entity_extractor, helpers
-from classes import tweet, commonness
-from modules.extract_cityref import ExtractCityref
+from dte.functions import entity_extractor, helpers
+from dte.classes import tweet, commonness
+from dte.modules.extract_cityref import ExtractCityref
 
 class ExtractEntitiesTask(Task):
 

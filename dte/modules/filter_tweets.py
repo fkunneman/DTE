@@ -6,8 +6,8 @@ import io
 import json
 import re
 
-from functions import tweetfilter, json_tweets_parser
-from classes import tweet
+from dte.functions import tweetfilter, json_tweets_parser
+from dte.classes import tweet
 
 class FilterTweetsTask(Task):
 
