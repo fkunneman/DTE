@@ -132,7 +132,6 @@ class Event:
 
 
 
-
     # def add_ttratio(self):
     #     tokens = []
     #     for tweet in self.tweets:
