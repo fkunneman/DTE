@@ -32,6 +32,7 @@ class EventDeduplicator:
         new_events = []
         for date in dates:
             candidates = self.return_events_date(date)
+            print('Event entities before merge:',[x[1].entities for x in candidates])
             merged = [candidates[0]]
             print(date)
             print('BEFORE',[x[1].entities for x in candidates])
@@ -46,6 +47,7 @@ class EventDeduplicator:
                     merged.append([index2,event2])
             print('AFTER',[x[1].entities for x in merged])
             new_events.extend([x[1] for x in merged])
+            print('Event entities after merge:',[x[1].entities for x in merged])
         self.events = new_events
 
     def set_index_event(self):
