@@ -23,13 +23,13 @@ class DeduplicateEvents(StandardWorkflowComponent):
         return InputFormat(self, format_id='events', extension='.integrated')
 
     def autosetup(self):
-        return MergeEventsTask
+        return DeduplicateEventsTask
 
 class DeduplicateEventsTask(Task):
 
     in_events = InputSlot()
 
-    overlap_threshold = Parameter()
+    similarity_threshold = Parameter()
 
     def out_deduplicated_events(self):
         return self.outputfrominput(inputformat='events', stripextension='.integrated', addextension='.integrated.deduplicated')

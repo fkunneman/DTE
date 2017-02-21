@@ -24,7 +24,7 @@ class IntegrateEvents(StandardWorkflowComponent):
     def accepts(self):
         return InputFormat(self, format_id='events', extension='.events')
 
-    def autosetup(self)
+    def autosetup(self):
         return IntegrateEventsTask
 
 class IntegrateEventsTask(Task):
