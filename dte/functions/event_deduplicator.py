@@ -19,27 +19,25 @@ class EventDeduplicator:
     def return_events(self):
         return self.events
 
-    def is_similar(self,index1,index2,similarity_threshold):
-        similarity = self.event_similarity[index[1],index[2]]
+    def is_similar(self,index1,index2,e_similarity,similarity_threshold):
+        similarity = e_similarity[index[1],index[2]]
         similar = True if similarity > similarity_threshold else False
         return similar
 
     def deduplicate_events(self,similarity_threshold):
-        self.set_index_event()
-        self.set_event_similarity()
         # sort by date
         dates = sorted(list(set([event.datetime.date() for event in self.events])))
         new_events = []
         for date in dates:
             candidates = self.return_events_date(date)
-            print('Event entities before merge:',[x[1].entities for x in candidates])
-            merged = [candidates[0]]
-            print(date)
-            print('BEFORE',[x[1].entities for x in candidates])
-            for index2, event2 in candidates[1:]:
+            index_events = [[i,event] for i,event in enumerate(candidates)]
+            event_similarity = self.set_event_similarity(index_events)
+            print('Event entities before merge:',[x.entities for x in candidates])
+            merged = [index_events[0]]
+            for index2, event2 in index_events[1:]:
                 similar = False
                 for index1, event1 in merged:
-                    if self.is_similar(index1,index2,similarity_threshold):
+                    if self.is_similar(index1,index2,event_similarity,similarity_threshold):
                         event1.merge(event2)
                         similar = True
                         break
@@ -50,15 +48,11 @@ class EventDeduplicator:
             print('Event entities after merge:',[x[1].entities for x in merged])
         self.events = new_events
 
-    def set_index_event(self):
-        self.index_event = {}
-        for i,event in enumerate(self.events):
-            self.index_event[i] = event
-
-    def set_event_similarity(self):
+    def set_event_similarity(self,index_events):
         tfidf_vectorizer = TfidfVectorizer()
-        big_documents = tfidf_vectorizer.fit_transform([self.get_concatenated_tweets_event(self.index_event[i]) for i in range(len(self.events))])
-        self.event_similarity = cosine_similarity(big_documents,big_documents)
+        big_documents = tfidf_vectorizer.fit_transform([self.get_concatenated_tweets_event(ie[1]) for ie in index_events])
+        event_similarity = cosine_similarity(big_documents,big_documents)
+        return event_similarity
 
     def get_concatenated_tweets_event(self,event):
         return ' '.join([tweet.text for tweet in event.tweets])
