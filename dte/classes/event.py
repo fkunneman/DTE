@@ -74,13 +74,13 @@ class Event:
         self.tweets.extend([tweet for tweet in event.tweets if not tweet.id in tweetids])
         self.mentions = len(self.tweets)
 
-    def entity_overlap(e1,e2):
-        if set(e1.split()) & set(s2.split()):
+    def entity_overlap(self,e1,e2):
+        if set(e1.split()) & set(e2.split()):
             return True
         else:
             return False
 
-    def merge_entities(e1,e2):
+    def merge_entities(self,e1,e2):
         if e1.strip('#') == e2.strip('#'): # only difference is hashtag
             if '#' in e1:
                 return e1
@@ -92,17 +92,17 @@ class Event:
             return e2
 
     def resolve_overlap_entities(self):
-        none_overlapping_entities = [self.entities[0]]
+        non_overlapping_entities = [self.entities[0]]
         for entity2 in self.entities[1:]:
             overlap = False
-            for entity1 in none_overlapping_entities:
+            for entity1 in non_overlapping_entities:
                 if self.entity_overlap(entity1,entity2):
                     entity1 = self.merge_entities(entity1.strip('#'),entity2.strip('#'))
                     overlap = True
                     break
             if not overlap:
-                non_everlapping_entities.append(entity2)
-        self.entities = none_overlapping_entities
+                non_overlapping_entities.append(entity2)
+        self.entities = non_overlapping_entities
 
     def order_entities(self):
         entity_ranks = defaultdict(list)
@@ -116,7 +116,7 @@ class Event:
                     matching_entities.append([entity,entity_position])
             sorted_matches = sorted(matching_entities, key = lambda k : k[1])
             for i,entity in enumerate(sorted_matches):
-                entity_ranks[entity].append(i)
+                entity_ranks[entity[0]].append(i)
         # order the entities by their mean ranks
         entities_avg_position_rank = [[entity,numpy.mean(entity_ranks[entity])] for entity in self.entities]
         sorted_entities = sorted(entities_avg_position_rank,key = lambda k : k[1])

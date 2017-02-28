@@ -48,9 +48,9 @@ class DeduplicateEventsTask(Task):
         # initialize event deduplicator
         similarity_threshold = float(self.similarity_threshold)
         print('Deduplicating; number of events at start:',len(event_objs))
-        decuplicator = event_deduplicator.EventDeduplicator()
-        decuplicator.set_events(event_objs)
-        decuplicator.deduplicate_events(similarity_threshold)
+        deduplicator = event_deduplicator.EventDeduplicator()
+        deduplicator.set_events(event_objs)
+        deduplicator.deduplicate_events(similarity_threshold)
         deduplicated_events = deduplicator.return_events()
         print('Done. number of events after deduplication:',len(deduplicated_events))        
 
