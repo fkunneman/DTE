@@ -29,7 +29,6 @@ class EventDeduplicator:
         dates = sorted(list(set([event.datetime.date() for event in self.events])))
         new_events = []
         for date in dates:
-            print(date)
             candidates = self.return_events_date(date)
             index_events = [[i,event] for i,event in enumerate(candidates)]
             event_similarity = self.set_event_similarity(index_events)
@@ -44,6 +43,7 @@ class EventDeduplicator:
                         break
                 if not similar:
                     merged.append([index2,event2])
+            print('AFTER',[x[1].entities for x in merged])
             new_events.extend([x[1] for x in merged])
             print('Event entities after merge:',[x[1].entities for x in merged])
         self.events = new_events
@@ -58,4 +58,4 @@ class EventDeduplicator:
         return ' '.join([tweet.text for tweet in event.tweets])
 
     def return_events_date(self,date):
-        return [[i,self.index_events[i] for i in range(len(events)) if self.index_event[i].datetime.date() == date]]
+        return [[i,self.index_events[i]] for i in range(len(events)) if self.index_event[i].datetime.date() == date]
