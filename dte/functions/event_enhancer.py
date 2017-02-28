@@ -17,4 +17,5 @@ class EventEnhancer:
             event.resolve_overlap_entities()
             event.order_entities()
             event.rank_tweets()
+            event.set_location()
     

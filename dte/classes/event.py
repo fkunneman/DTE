@@ -3,6 +3,7 @@ import json
 import re
 import numpy
 from collections import defaultdict
+from collections import Counter
 
 from dte.classes.tweet import Tweet
 from dte.functions import time_functions
@@ -16,6 +17,7 @@ class Event:
         self.datetime = False
         self.entities = []
         self.score = False
+        self.location = False
         self.tweets = []
         self.date_tweets = defaultdict(list)
 
@@ -23,6 +25,7 @@ class Event:
         self.datetime = self.import_datetime(eventdict['datetime']) if 'datetime' in eventdict.keys() else False 
         self.entities = eventdict['entities'] if 'entities' in eventdict.keys() else False
         self.score = float(eventdict['score']) if 'score' in eventdict.keys() else False
+        self.location = eventdict['location'] if 'location' in eventdict.keys() else False
         self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
 
     def return_dict(self):
@@ -121,6 +124,24 @@ class Event:
 
     def rank_tweets(self):
         self.tweets = sorted(self.tweets,key = lambda k : k.datetime,reverse=True)
+
+    def set_event_location(self,minimum_mentions=5,minimum_percentage=0.55):
+        # count locations
+        location_counter = Counter()
+        for tweet in self.tweets:
+            if len(tweet.cityrefs) > 0:
+                for cityref in cityrefs:
+                    location_counter[cityref] += 1
+        # calculate percentages
+        candidates = []
+        for location in location_counter.keys():
+            counts = location_counter[location]
+            if counts >= minimum_mentions:
+                candidates.append([location,counts/len(self.tweets)])
+        # select location
+        top_candidate = sorted(candidates,key = lambda k : k[1],reverse=True)[0] 
+        self.location = top_candidate[0] if top_candidate[1] > minimum_percentage else False 
+
 
 
     # def set_periodics(self,events):
