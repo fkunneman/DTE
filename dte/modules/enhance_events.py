@@ -33,6 +33,7 @@ class EnhanceEventsTask(Task):
     def run(self):
 
         # read in events
+        print('Reading in events')
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
@@ -42,6 +43,7 @@ class EnhanceEventsTask(Task):
             event_objs.append(eventobj)
 
         # initialize event enhancer
+        print('Enhancing events')
         enhancer = event_enhancer.EventEnhancer()
         enhancer.set_events(event_objs)
         enhancer.enhance()

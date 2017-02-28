@@ -132,7 +132,7 @@ class Event:
         location_counter = Counter()
         for tweet in self.tweets:
             if len(tweet.cityrefs) > 0:
-                for cityref in cityrefs:
+                for cityref in tweet.cityrefs:
                     location_counter[cityref] += 1
         # calculate percentages
         candidates = []
@@ -141,9 +141,11 @@ class Event:
             if counts >= minimum_mentions:
                 candidates.append([location,counts/len(self.tweets)])
         # select location
-        top_candidate = sorted(candidates,key = lambda k : k[1],reverse=True)[0] 
-        self.location = top_candidate[0] if top_candidate[1] > minimum_percentage else False 
-
+        if len(candidates) > 0:
+            top_candidate = sorted(candidates,key = lambda k : k[1],reverse=True)[0] 
+            self.location = top_candidate[0] if top_candidate[1] > minimum_percentage else False 
+        else:
+            self.location = False
 
 
     # def set_periodics(self,events):

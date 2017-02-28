@@ -13,9 +13,13 @@ class EventEnhancer:
         return self.events
 
     def enhance(self):
-        for event in self.events:
+        l = len(self.events)
+        shows = range(10000, l, 10000) #to write intermediate output
+        checks = range(0, l, 1000)
+        for i,event in enumerate(self.events):
+            if i in checks:
+                print('event',i,'of',l)
             event.resolve_overlap_entities()
             event.order_entities()
             event.rank_tweets()
-            event.set_location()
-    
+            event.set_event_location()
