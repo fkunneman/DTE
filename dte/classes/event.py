@@ -27,6 +27,7 @@ class Event:
         self.score = float(eventdict['score']) if 'score' in eventdict.keys() else False
         self.location = eventdict['location'] if 'location' in eventdict.keys() else False
         self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
+        self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
 
     def return_dict(self):
         eventdict = {
@@ -34,7 +35,8 @@ class Event:
             'entities':self.entities,
             'score':self.score,
             'tweets':[tweet.return_dict() for tweet in self.tweets],
-            'mentions':self.mentions
+            'mentions':self.mentions,
+            'location':self.location
         }
         return eventdict
 
