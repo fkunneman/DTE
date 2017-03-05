@@ -206,7 +206,7 @@ class ExtractEventsTask(Task):
                     tweetobj = tweet.Tweet()
                     tweetobj.import_tweetdict(td)
                     er.add_tweet(tweetobj)
-                er.tweet_counts += 1
+                er.tweet_count += 1
 
         # extract events
         print('Performing event extraction')
