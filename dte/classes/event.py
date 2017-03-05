@@ -150,23 +150,3 @@ class Event:
 
     # def set_periodics(self,events):
     #     self.periodics = events
-
-
-
-
-
-
-
-    # def add_ttratio(self):
-    #     tokens = []
-    #     for tweet in self.tweets:
-    #         tokens.extend(tweet.text.split(" ")) 
-    #     self.tt_ratio = len(list(set(tokens))) / len(tokens)
-
-    # def add_tfidf(self,sorted_tfidf,w_indexes):
-    #     self.word_tfidf = {}
-    #     sorted_word_tfidf = [(w_indexes[x[0]],x[1]) for x in sorted_tfidf if x[1] > 0]
-    #     for word_score in sorted_word_tfidf:
-    #         self.word_tfidf[word_score[0]] = word_score[1]
-
-
