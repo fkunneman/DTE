@@ -13,30 +13,41 @@ class Event:
     Container for event class
     """
     def __init__(self):
-        self.mentions = 1
+        self.mongo_id = False
         self.datetime = False
         self.entities = []
         self.score = False
         self.location = False
         self.tweets = []
-        self.date_tweets = defaultdict(list)
+        self.mentions = 1
+        self.periodic = False
+        self.anticipointment = False
+        self.type = False
 
     def import_eventdict(self,eventdict):
+        self.mongo_id = eventdict['mongo_id'] if 'mongo_id' in eventdict.keys() else False
         self.datetime = self.import_datetime(eventdict['datetime']) if 'datetime' in eventdict.keys() else False 
         self.entities = eventdict['entities'] if 'entities' in eventdict.keys() else False
         self.score = float(eventdict['score']) if 'score' in eventdict.keys() else False
         self.location = eventdict['location'] if 'location' in eventdict.keys() else False
         self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
         self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
+        self.periodic = eventdict['periodic'] if 'periodic' in eventdict.keys() else False 
+        self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
+        self.type = eventdict['type'] if 'type' in eventdict.keys() else False 
 
     def return_dict(self):
         eventdict = {
+            'mongo_id':self.mongo_id,
             'datetime':str(self.datetime),
             'entities':self.entities,
             'score':self.score,
+            'location':self.location,
             'tweets':[tweet.return_dict() for tweet in self.tweets],
             'mentions':self.mentions,
-            'location':self.location
+            'periodic':self.periodic,
+            'anticipointment':self.anticipointment,
+            'type':self.type,
         }
         return eventdict
 
@@ -64,10 +75,12 @@ class Event:
 
     def add_tweet(self,tweet):
         self.tweets.append(tweet)
-        self.date_tweets[tweet.datetime.date()].append(tweet)
 
     def add_mention(self,n=1):
         self.mentions += 1
+
+    def set_periodic(self,periodic): # dictionary
+        self.periodic = periodic
 
     def merge(self,event):
         self.score = max(self.score,event.score)
