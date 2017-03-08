@@ -11,7 +11,7 @@ from dte.functions import event_filter
 from dte.classes import event
 
 @registercomponent
-class FilterEvents(WorkflowComponent):
+class FilterEvents(StandardWorkflowComponent):
 
     citylist = Parameter()
 
@@ -19,9 +19,9 @@ class FilterEvents(WorkflowComponent):
         return InputFormat(self, format_id='events', extension='.merged')
 
     def autosetup(self):
-        return MergeEventsTask
+        return FilterEventsTask
 
-class MergeEventsTask(Task):
+class FilterEventsTask(Task):
 
     in_events = InputSlot()
 
@@ -56,5 +56,6 @@ class MergeEventsTask(Task):
         print('Done. number of events after filter:',len(events_filtered))        
 
         # write filter
+        out_filtered_events = [event.return_dict() for event in events_filtered]
         with open(self.out_filtered_events().path,'w',encoding='utf-8') as file_out:
-            json.dump(events_filtered,file_out)
+            json.dump(out_filtered_events,file_out)

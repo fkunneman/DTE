@@ -46,7 +46,7 @@ class AssessBurstinessTask(Task):
         print('Reading in countfiles')
         countfiles = sorted([countfile for countfile in glob.glob(self.in_entity_counts().path + '/*')])
         countdicts = []
-        for countfile in countfiles[:50]:
+        for countfile in countfiles:
             dateinfo = countfile.split('/')[-1]
             date = datetime.date(int(dateinfo[:4]),int(dateinfo[4:6]),int(dateinfo[6:8]))
             with open(countfile,'r',encoding='utf-8') as file_in:
@@ -73,7 +73,7 @@ class AssessBurstinessTask(Task):
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
-        for ed in eventdicts[:10000]:
+        for ed in eventdicts:
             eventobj = event.Event()
             eventobj.import_eventdict(ed)
             event_objs.append(eventobj)

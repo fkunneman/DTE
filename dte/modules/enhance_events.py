@@ -18,7 +18,7 @@ from dte.classes import event
 class EnhanceEvents(StandardWorkflowComponent):
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.deduplicated')
+        return InputFormat(self, format_id='events', extension='.filtered')
 
     def autosetup(self):
         return EnhanceEventsTask
@@ -28,7 +28,7 @@ class EnhanceEventsTask(Task):
     in_events = InputSlot()
 
     def out_enhanced_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.deduplicated', addextension='.deduplicated.enhanced')
+        return self.outputfrominput(inputformat='events', stripextension='.filtered', addextension='.enhanced')
 
     def run(self):
 

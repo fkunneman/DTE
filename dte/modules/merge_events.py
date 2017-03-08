@@ -87,9 +87,7 @@ class IntegrateEventsTask(Task):
 ################################################################################
 
 @registercomponent
-class MergeEvents(WorkflowComponent):
-
-    events = Parameter()
+class MergeEvents(StandardWorkflowComponent):
 
     overlap_threshold = Parameter(default = 0.2)
 
@@ -121,12 +119,14 @@ class MergeEventsTask(Task):
 
         # initialize event merger
         print('Merging; number of events at start:',len(event_objs))
+        overlap_threshold = float(self.overlap_threshold)
         merger = event_merger.EventMerger()
         merger.add_events(event_objs)
-        merger.find_merges(self.overlap_threshold)
+        merger.find_merges(overlap_threshold)
         events_merged = merger.return_events()
         print('Done. number of events after merge:',len(events_merged))        
 
         # write merged 
+        out_merged_events = [event.return_dict() for event in events_merged]
         with open(self.out_merged_events().path,'w',encoding='utf-8') as file_out:
-            json.dump(events_merged,file_out)
+            json.dump(out_merged_events,file_out)
