@@ -44,6 +44,7 @@ class EventMerger:
         intersect = list(set([tweet.id for tweet in event1.tweets]) & set([tweet.id for tweet in event2.tweets]))
         overlap_percent = len(intersect) / len(event1.tweets)
         overlap = True if overlap_percent > overlap_threshold else False
+        overlap = True if set(event1.entities) == set(event2.entities)
         return overlap
 
     def return_events_date(self,date):
