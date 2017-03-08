@@ -46,25 +46,25 @@ class AssessBurstinessTask(Task):
         print('Reading in countfiles')
         countfiles = sorted([countfile for countfile in glob.glob(self.in_entity_counts().path + '/*')])
         countdicts = []
-        for countfile in countfiles:
+        for countfile in countfiles[:50]:
             dateinfo = countfile.split('/')[-1]
             date = datetime.date(int(dateinfo[:4]),int(dateinfo[4:6]),int(dateinfo[6:8]))
             with open(countfile,'r',encoding='utf-8') as file_in:
                 countdicts.append([date,json.loads(file_in.read())])
         # extract entities
         print('Extracting entities')
-        entities = set([cd.keys() for cd in countdicts])
+        entities = set(sum([list(cd[1].keys()) for cd in countdicts],[]))
         # extract counts per entity
         print('Extracting counts per entity')
         counts = defaultdict(list)
-        date_counts = defaultdict(lambda : defaultdict({}))
+        date_counts = defaultdict(lambda : {})
         for countdict in countdicts:
             date = countdict[0]
             cd = countdict[1]
             for entity in list(entities - set(cd.keys())):
                 counts[entity].append(0)
                 date_counts[entity][date] = 0
-            for entity in countdict.keys():
+            for entity in cd.keys():
                 counts[entity].append(int(cd[entity]))
                 date_counts[entity][date] = cd[entity]
 
@@ -73,7 +73,7 @@ class AssessBurstinessTask(Task):
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
-        for ed in eventdicts:
+        for ed in eventdicts[:10000]:
             eventobj = event.Event()
             eventobj.import_eventdict(ed)
             event_objs.append(eventobj)
@@ -83,7 +83,7 @@ class AssessBurstinessTask(Task):
         bd = burstiness_detector.BurstinessDetector()
         bd.set_entity_counts(counts)
         bd.set_entity_datecount(date_counts)
-        bd.set_events(events)
+        bd.set_events(event_objs)
         print('Extracting event dates per entity')
         bd.set_entities_dates()
         print('Calculating burstiness for each entity event')
@@ -93,4 +93,4 @@ class AssessBurstinessTask(Task):
         # write burstiness
         print('Done. Writing to file')
         with open(self.out_entity_burstiness().path,'w',encoding='utf-8') as file_out:
-            json.dump(burstiness,file_out)
+            file_out.write('\n'.join(['\t'.join([str(x) for x in line]) for line in burstiness]))
