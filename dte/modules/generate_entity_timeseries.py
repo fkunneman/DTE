@@ -4,6 +4,7 @@ from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, 
 import json
 import glob
 import os
+import re
 import datetime 
 from collections import defaultdict
 
@@ -70,7 +71,7 @@ class GetEntityTimeseriesTask(Task):
                 for td in tweetdicts:
                     tweetobj = tweet.Tweet()
                     tweetobj.import_tweetdict(td)
-                    date_tweets[tweetobj.datetime].append(tweetobj)
+                    date_tweets[tweetobj.datetime.date()].append(tweetobj)
             # make counts by date
             dates = date_tweets.keys()
             dates_sorted = sorted(dates)
@@ -107,7 +108,7 @@ class CountEntities(WorkflowComponent):
         entity_counter.in_events = input_feeds['events']
         entity_counter.in_entity_counts = input_feeds['entity_counts']
 
-        return entitie_counter
+        return entity_counter
 
 class CountEntitiesTask(Task):
 
@@ -118,11 +119,11 @@ class CountEntitiesTask(Task):
     date = Parameter()
 
     def out_counts(self):
-        return self.outputfrominput(inputformat='entity_counts', stripextension='.entity_counts', addextension='.entity_counts/' + date + '.counts.json')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.entity_counts', addextension='.entity_counts/' + self.date + '.counts.json')
 
     def run(self):
 
-        date_formatted = datetime.date(date[:4],date[4:6],date[6:])
+        #date_formatted = datetime.date(int(self.date[:4]),int(self.date[4:6]),int(self.date[6:]))
 
         # read in events
         print('Reading in events')
@@ -135,12 +136,11 @@ class CountEntitiesTask(Task):
         unique_entities = list(set(entities))
 
         # select tweetfiles of date
-        tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + date_formatted.year + date_formatted.month + '/*') if tweetfile[6:8] == date_formatted.day]
+        tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + self.date[:4] + self.date[4:6] + '/*') if re.search(self.date,tweetfile)]
         # go through all tweet files
         print('Reading in tweets')
         tweets = []
         for tweetfile in tweetfiles:
-            print(tweetfile)
             # read in tweets
             with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
                 tweetdicts = json.loads(file_in.read())
@@ -150,6 +150,7 @@ class CountEntitiesTask(Task):
                 tweets.append(tweetobj)
 
         # make counts
+        print('Making counts')
         ts = term_seeker.TermSeeker()
         ts.set_tweets(tweets)
         ts.query_terms(unique_entities)

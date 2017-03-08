@@ -11,14 +11,12 @@ class TermSeeker:
     def set_tweets(self,tweets):
         self.tweets = tweets
 
-    def query_terms(self,terms,tweets=False):
+    def query_terms(self,terms):
         qs = set(terms)
-        for tweet in tweets:
-            if qs & set(tweet.entities)
-                ste = set(tweet.entities)
-                for term in terms:
-                    if set([term]) & ste:
-                        self.term_counts[term] += 1
-                        if tweets:
-                            self.term_tweets[term].append(tweet)
+        for tweet in self.tweets:
+            m = list(qs & set(tweet.entities))
+            if len(m) > 0:
+                for term in m:
+                    self.term_counts[term] += 1
+                    self.term_tweets[term].append(tweet)
 

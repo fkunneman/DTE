@@ -29,14 +29,14 @@ class PeriodicityDetector:
 ### Main functions
 ##############################
 
-    def main(self):
+    def main(self,periodics_threshold):
         self.extract_event_sequences()
         num_entities = len(self.entity_events.keys())
         for e,entity in enumerate(self.entity_events.keys()):
-            print(entity,' - ',e,'of',num_entities)
             events = self.entity_events[entity]
-            periodics = self.detect_periodicity(events)
+            periodics = self.detect_periodicity(events,periodics_threshold)
             for periodic in periodics:
+                print(entity.encode('utf-8'),' - ',e,'of',num_entities)
                 self.save_periodicity(periodic)
 
     def detect_periodicity(self,events,periodics_threshold): 
@@ -48,15 +48,16 @@ class PeriodicityDetector:
         pattern = periodic[0]
         score = periodic[1]
         description = self.describe_pattern(pattern)
+        print(pattern,description,score,self.return_dates(periodic[2]))
         for i,event in enumerate(periodic[2]):
             editions = [edition.mongo_id for edition in periodic[2]]
             event.set_periodic({'pattern':pattern,'score':score,'description':description,'editions':editions})
 
     def select_periodics(self,periodics):
-        selection = periodics[0]
+        selection = [periodics[0]]
         for periodic in periodics[1:]:
             events = periodic[2]
-            selection_events = [s[2] for s in selection]
+            selection_events = sum([s[2] for s in selection],[])
             if not self.has_overlap_events(selection_events,events):
                 selection.append(periodic)
         return selection
@@ -89,7 +90,7 @@ class PeriodicityDetector:
             candidate_event_month_steps = self.return_month_steps(candidate_event_dates)
             periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('month'),candidate_event_month_steps,[self.pattern_fields.index('day')],[day])
             periodic_score = self.assess_periodicity(periodic_pattern,len(candidate_events),len(events),candidate_event_month_steps)
-            periodic_patterns.append([periodic_pattern,periodic_score])
+            periodic_patterns.append([periodic_pattern,periodic_score,candidate_events])
         return periodic_patterns
 
     def detect_weekday_periodicity(self,events):
@@ -97,7 +98,7 @@ class PeriodicityDetector:
         event_dates = self.return_dates(events)
         recurring_weekdays = self.detect_recurring_weekdays(event_dates)
         for weekday in recurring_weekdays: 
-            candidate_events = self.return_candidate_events_weekday(events,day)
+            candidate_events = self.return_candidate_events_weekday(events,weekday)
             candidate_event_dates = self.return_dates(candidate_events)
             # find yearly recurring weekday-week combis
             recurring_weeks = self.detect_recurring_weeks(candidate_event_dates)
@@ -107,12 +108,12 @@ class PeriodicityDetector:
                 candidate_event_year_steps = self.return_year_steps(candidate_event_dates_week)
                 periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('year'),candidate_event_year_steps,[self.pattern_fields.index('week'),self.pattern_fields.index('weekday')],[week,weekday])
                 periodic_score = self.assess_periodicity(periodic_pattern,len(candidate_events_week),len(events),candidate_event_year_steps)
-                periodic_patterns.append([periodic_pattern,periodic_score,candidate_events])
+                periodic_patterns.append([periodic_pattern,periodic_score,candidate_events_week])
             # find weekly recurring weekdays
             candidate_event_week_steps = self.return_week_steps(candidate_event_dates)
-            periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('week'),candidate_event_month_steps,[self.pattern_fields.index('weekday')],[weekday])
-            periodic_score = self.assess_periodicity(periodic_pattern,len(candidate_events),len(events),candidate_event_month_steps)
-            periodic_patterns.append([periodic_pattern,periodic_score])
+            periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('week'),candidate_event_week_steps,[self.pattern_fields.index('weekday')],[weekday])
+            periodic_score = self.assess_periodicity(periodic_pattern,len(candidate_events),len(events),candidate_event_week_steps)
+            periodic_patterns.append([periodic_pattern,periodic_score,candidate_events])
         return periodic_patterns
 
     def detect_weekday_of_month_periodicity(self,events):
@@ -120,14 +121,14 @@ class PeriodicityDetector:
         event_dates = self.return_dates(events)
         recurring_weekdays = self.detect_recurring_weekdays(event_dates)
         for weekday in recurring_weekdays: 
-            candidate_events = self.return_candidate_events_weekday(events,day)
+            candidate_events = self.return_candidate_events_weekday(events,weekday)
             candidate_event_dates = self.return_dates(candidate_events)
             # find yearly recurring weekday-day_of_month combis
             recurring_weekdays_of_month = self.detect_recurring_weekdays_of_month(candidate_event_dates)
             for weekday_of_month in recurring_weekdays_of_month:
                 candidate_events_week_of_month = self.return_candidate_events_week_of_month(candidate_events,weekday_of_month)
                 candidate_event_week_of_month_dates = self.return_dates(candidate_events_week_of_month)
-                recurring_months = self.detect_recurring_months(candidate_events_week_of_month)
+                recurring_months = self.detect_recurring_months(candidate_event_week_of_month_dates)
                 for month in recurring_months:
                     candidate_events_month = self.return_candidate_events_month(candidate_events_week_of_month,month)
                     candidate_event_dates_month = self.return_dates(candidate_events_month)
@@ -137,9 +138,9 @@ class PeriodicityDetector:
                     periodic_patterns.append([periodic_pattern,periodic_score,candidate_events_month])
                 # find monthly recurring weekdays of month
                 candidate_event_month_steps = self.return_month_steps(candidate_event_week_of_month_dates)
-                periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('month'),candidate_event_month_steps,[self.pattern_fields.index('week_of_month'),self.pattern_fields.index('weekday')],[week_of_month,weekday])
+                periodic_pattern = self.return_periodic_pattern(self.pattern_fields.index('month'),candidate_event_month_steps,[self.pattern_fields.index('week_of_month'),self.pattern_fields.index('weekday')],[weekday_of_month,weekday])
                 periodic_score = self.assess_periodicity(periodic_pattern,len(candidate_events),len(events),candidate_event_month_steps)
-                periodic_patterns.append([periodic_pattern,periodic_score])
+                periodic_patterns.append([periodic_pattern,periodic_score,candidate_events_week_of_month])
         return periodic_patterns
 
 ##############################
@@ -157,7 +158,7 @@ class PeriodicityDetector:
         for i,periodic_level in enumerate(periodic_levels):
             pattern[periodic_level] = periodic_values[i]
         # decide step size
-        step = min(constant_steps)
+        step = min(sequence_steps)
         pattern[6] = step
         return pattern
 
@@ -174,7 +175,7 @@ class PeriodicityDetector:
         return num_candidates / num_events
 
     def score_confidence(self,num_candidates,steps,standard_step):
-        return num_candidates / num_candidates + sum([step-standard_step for step in steps])
+        return num_candidates / (num_candidates + sum([step-standard_step for step in steps]))
 
     def describe_pattern(self,pattern):
         # describe sequence
@@ -182,7 +183,7 @@ class PeriodicityDetector:
         step = pattern[6]
         sequence_description = self.describe_sequence(time_unit_sequence,step)
         # describe recurring pattern
-        time_units_recurring = [[i,field] for field in enumerate(pattern[:6]) if field not in ['v','e']]
+        time_units_recurring = [[i,field] for i,field in enumerate(pattern[:6]) if field not in ['v','e']]
         fields_recurring_timeunits = [x[0] for x in time_units_recurring]
         if 3 in fields_recurring_timeunits: # pattern with date
             day = time_units_recurring[-1][1]
@@ -219,7 +220,7 @@ class PeriodicityDetector:
         return 'op de ' + str(week_of_month) + 'e ' + self.return_weekday_str(weekday) + ' van ' + self.return_month_str(month)
 
     def describe_recurring_monthday(self,monthday):
-        return 'op de ' + str(monthday) + 'e'
+        return 'op de ' + str(monthday) + 'e dag'
 
     def describe_recurring_weekday(self,weekday):
         return 'op ' + self.return_weekday_str(weekday)
@@ -246,35 +247,35 @@ class PeriodicityDetector:
 ### get information units from events or dates
 
     def return_dates(self,events):
-        return [event.datetime for event in events]
+        return sorted(list(set([event.datetime.date() for event in events])))
 
     def return_day_sequence(self,dates):
-        return [date.day for date in dates]
+        return [date.day for date in list(set(dates))]
 
     def return_weekday_sequence(self,dates):
-        return [date.weekday() for date in dates]
+        return [date.weekday() for date in list(set(dates))]
 
     def return_week_of_month_sequence(self,dates):
-        return [self.return_week_of_month(date) for date in dates]
+        return [self.return_week_of_month(date) for date in list(set(dates))]
 
     def return_week_of_month(self,date):
-        for i,week_of_month_days in calendar.monthcalendar(date.year,date.month):
+        for i,week_of_month_days in enumerate(calendar.monthcalendar(date.year,date.month)):
             if date.day in week_of_month_days:
                 return i+1
 
     def return_week_sequence(self,dates):
-        return [date.isocalendar()[1] for date in dates]
+        return [date.isocalendar()[1] for date in list(set(dates))]
 
     def return_month_sequence(self,dates):
-        return [date.month for date in dates]
+        return [date.month for date in list(set(dates))]
 
     def return_year_sequence(self,dates):
-        return [date.year for date in dates]
+        return [date.year for date in list(set(dates))]
 
 ### recurring time units
 
-    def detect_recurring_days(self,events):
-        day_sequence = self.return_day_sequence(event_dates)
+    def detect_recurring_days(self,dates):
+        day_sequence = self.return_day_sequence(dates)
         candidates = [day for day in list(set(day_sequence)) if day_sequence.count(day) > 2]
         return candidates
 
@@ -324,4 +325,4 @@ class PeriodicityDetector:
         return [int((dates[i].year - dates[i-1].year)*12 + dates[i].month - dates[i-1].month) for i in range(1,len(dates))]
 
     def return_week_steps(self,dates):
-        return [int((dates[i].year - dates[i-1].year)*12 + dates[i].isocalendar()[1] - dates[i-1].isocalendar()[1]) for i in range(1,len(dates))]
+        return [int((dates[i].year - dates[i-1].year)*52 + dates[i].isocalendar()[1] - dates[i-1].isocalendar()[1]) for i in range(1,len(dates))]

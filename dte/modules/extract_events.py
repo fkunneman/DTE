@@ -172,7 +172,7 @@ class ExtractEventsTask(Task):
         return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.events')
 
     def out_events(self):
-        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.events/' + str(self.window_size) + '_' + self.end_date + '.events.json')
+        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.events/' + str(self.window_size) + '_' + self.end_date + '.events')
 
     def run(self):
 

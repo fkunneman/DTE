@@ -20,7 +20,7 @@ class DeduplicateEvents(StandardWorkflowComponent):
     similarity_threshold = Parameter(default = 0.7)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.events.json')
+        return InputFormat(self, format_id='events', extension='.events')
 
     def autosetup(self):
         return DeduplicateEventsTask
@@ -32,7 +32,7 @@ class DeduplicateEventsTask(Task):
     similarity_threshold = Parameter()
 
     def out_deduplicated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.json', addextension='.deduplicated.json')
+        return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.events.deduplicated')
 
     def run(self):
 
