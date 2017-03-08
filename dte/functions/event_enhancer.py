@@ -12,10 +12,12 @@ class EventEnhancer:
     def return_events(self):
         return self.events
 
-    def enhance(self):
+    def enhance(self,check_status=True):
         for i,event in enumerate(self.events):
-            event.resolve_overlap_entities()
-            event.order_entities()
-            event.rank_tweets()
-            event.set_event_location()
+            if not (check_status and event.status == 'stable'):
+                event.resolve_overlap_entities()
+                event.order_entities()
+                event.rank_tweets()
+                event.set_event_location()
+                event.status = 'stable'
 

@@ -23,6 +23,7 @@ class Event:
         self.periodic = False
         self.anticipointment = False
         self.type = False
+        self.status = 'changed'
 
     def import_eventdict(self,eventdict):
         self.mongo_id = eventdict['mongo_id'] if 'mongo_id' in eventdict.keys() else False
@@ -35,6 +36,7 @@ class Event:
         self.periodic = eventdict['periodic'] if 'periodic' in eventdict.keys() else False 
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
         self.type = eventdict['type'] if 'type' in eventdict.keys() else False 
+        self.status = eventdict['status'] if 'status' in eventdict.keys() else 'changed'
 
     def return_dict(self):
         eventdict = {
@@ -48,6 +50,7 @@ class Event:
             'periodic':self.periodic,
             'anticipointment':self.anticipointment,
             'type':self.type,
+            'status':self.status
         }
         return eventdict
 

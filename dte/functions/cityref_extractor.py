@@ -47,5 +47,4 @@ class CityrefExtractor:
 
     def return_cityrefs(self):
         cityrefs = list(set(sum([self.return_capitalized(self.cityrefs_start,0,-1),self.return_capitalized(self.cityrefs_middle,1,-1),self.return_capitalized(self.cityrefs_end,1,False)], [])))
-
         return cityrefs 

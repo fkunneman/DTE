@@ -31,18 +31,20 @@ class EventFilter:
     def strip_int(self,event):
         event.entities = [entity for entity in event.entities if not re.match(r'^\d+-?$',entity)]
 
+    def strip_ht(self,event):
+        event.entities = [entity for entity in event.entities if not entity == '#']
+
     def strip_event(self,event):
         self.strip_cities(event)
         self.strip_time(event)
         self.strip_int(event)
+        self.strip_ht(event)
 
     def apply_filter(self,citylist):
         self.set_citylist(citylist)
         filtered_events = []
         for event in self.events:
-            fs = event.entities
             self.strip_event(event)
-            fe = event.entities
             if not len(event.entities) == 0:
                 filtered_events.append(event)
         self.events = filtered_events
