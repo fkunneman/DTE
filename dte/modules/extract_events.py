@@ -7,7 +7,7 @@ import os
 import datetime 
 from collections import defaultdict
 
-from dte.functions import event_ranker, helpers
+from dte.functions import event_ranker, event_filter, helpers
 from dte.classes import event, tweet
 
 ################################################################################
@@ -147,6 +147,7 @@ class ExtractEventsSliderTask(Task):
 @registercomponent
 class ExtractEvents(StandardWorkflowComponent):
 
+    citylist = Parameter()
     end_date = Parameter()
     window_size = IntParameter(default=30)
     minimum_event_mentions = IntParameter(default=5)
@@ -163,6 +164,7 @@ class ExtractEventsTask(Task):
 
     in_tweetdir = InputSlot()
 
+    citylist = Parameter()
     end_date = Parameter()
     window_size = IntParameter()
     minimum_event_mentions = IntParameter()
@@ -192,6 +194,11 @@ class ExtractEventsTask(Task):
         for day in days_tweetfiles:
             tweetfiles.extend([ filename for filename in glob.glob(self.in_tweetdir().path + '/' + day + '*') ])
 
+        print('Reading in citylist')
+        # read in citylist
+        with open(self.citylist,'r',encoding='utf-8') as file_in:
+            citylist = [line.strip() for line in file_in.read().strip().split('\n')]
+
         # extract events
         er = event_ranker.EventRanker()
         # read in tweets
@@ -211,10 +218,14 @@ class ExtractEventsTask(Task):
         # extract events
         print('Performing event extraction')
         er.extract_events(self.minimum_event_mentions,self.cut_off)
-
-        print('Done. Extracted',len(er.events),'events')
+        extracted_events = [event.return_dict() for event in er.events]
+        filter = event_filter.EventFilter()
+        filter.add_events(extracted_events)
+        filter.apply_filter(citylist)
+        events_filtered = filter.return_events()
+        print('Done. Extracted',len(events_filtered),'events')
 
         # write to file
-        outevents = [event.return_dict() for event in er.events]
+        outevents = [event.return_dict() for event in events_filtered]
         with open(self.out_events().path,'w',encoding='utf-8') as file_out:
             json.dump(outevents,file_out)

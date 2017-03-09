@@ -33,11 +33,23 @@ class PeriodicityDetector:
         self.extract_event_sequences()
         num_entities = len(self.entity_events.keys())
         for e,entity in enumerate(self.entity_events.keys()):
-            events = self.entity_events[entity]
+            events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
             periodics = self.detect_periodicity(events,periodics_threshold)
             for periodic in periodics:
-                print(entity.encode('utf-8'),' - ',e,'of',num_entities)
                 self.save_periodicity(periodic)
+                self.apply_periodicity(periodic)
+
+    def selective_periodicity(self,periodics_threshold):
+        self.extract_entity_sequences()
+        selection = [event for event in self.events if event.status == 'unstable']
+        for event in selection:
+            for entity in event.entities:
+                events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
+                periodics = self.detect_periodicity(events,periodics_threshold)
+                for periodic in periodics:
+                    self.save_periodicity(periodic)
+                    self.apply_periodicity(periodic)
+            event.status = 'stable'
 
     def detect_periodicity(self,events,periodics_threshold): 
         periodics = self.detect_day_periodicity(events) + self.detect_weekday_periodicity(events) + self.detect_weekday_of_month_periodicity(events)
@@ -52,6 +64,9 @@ class PeriodicityDetector:
         for i,event in enumerate(periodic[2]):
             editions = [edition.mongo_id for edition in periodic[2]]
             event.set_periodic({'pattern':pattern,'score':score,'description':description,'editions':editions})
+
+    def apply_periodicity(self,periodic):
+        
 
     def select_periodics(self,periodics):
         selection = [periodics[0]]
