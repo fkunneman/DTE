@@ -20,10 +20,9 @@ class EventFilter:
 
     def strip_cities(self,event):
         ce = cityref_extractor.CityrefExtractor(self.citylist)
-        ce.find_cityrefs(' '.join([entity.replace('#','') for entity in event.entities]))
-        if len(ce.return_cityrefs()) > 0:
+        ce.find_cityrefs('start ' + ' '.join([entity.replace('#','') for entity in event.entities]) + ' end')
+        if len(list(set([entity.replace('#','') for entity in event.entities]) - set([entity.lower().strip() for entity in ce.return_cityrefs()]))) < len(event.entities):
             event.entities = []
-        #event.entities = list(set(event.entities) - set([entity.lower() for entity in ce.return_cityrefs()]))
 
     def strip_time(self,event):
         dte = dutch_timex_extractor.Dutch_timex_extractor(' '.join(event.entities), event.datetime)

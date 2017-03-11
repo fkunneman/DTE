@@ -218,9 +218,8 @@ class ExtractEventsTask(Task):
         # extract events
         print('Performing event extraction')
         er.extract_events(self.minimum_event_mentions,self.cut_off)
-        extracted_events = [event.return_dict() for event in er.events]
         filter = event_filter.EventFilter()
-        filter.add_events(extracted_events)
+        filter.add_events(er.events)
         filter.apply_filter(citylist)
         events_filtered = filter.return_events()
         print('Done. Extracted',len(events_filtered),'events')

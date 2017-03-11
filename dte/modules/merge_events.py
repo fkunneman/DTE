@@ -22,7 +22,7 @@ class IntegrateEvents(StandardWorkflowComponent):
     overlap_threshold = Parameter(default = 0.2)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.deduplicated')
+        return InputFormat(self, format_id='events', extension='.enhanced')
 
     def autosetup(self):
         return IntegrateEventsTask
@@ -35,7 +35,7 @@ class IntegrateEventsTask(Task):
     overlap_threshold = Parameter()
 
     def out_integrated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.deduplicated', addextension='.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.enhanced', addextension='.integrated')
 
     def run(self):
 

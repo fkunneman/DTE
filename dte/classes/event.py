@@ -22,8 +22,7 @@ class Event:
         self.mentions = 1
         self.periodic = False
         self.anticipointment = False
-        self.type = False
-        self.status = 'unstable'
+        self.eventtype = False
         self.predicted = False
 
     def import_eventdict(self,eventdict):
@@ -36,8 +35,7 @@ class Event:
         self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
         self.periodic = eventdict['periodic'] if 'periodic' in eventdict.keys() else False 
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
-        self.type = eventdict['type'] if 'type' in eventdict.keys() else False 
-        self.status = eventdict['status'] if 'status' in eventdict.keys() else 'stable'
+        self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False 
         self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
 
     def return_dict(self):
@@ -51,8 +49,7 @@ class Event:
             'mentions':self.mentions,
             'periodic':self.periodic,
             'anticipointment':self.anticipointment,
-            'type':self.type,
-            'status':self.status,
+            'eventtype':self.eventtype,
             'predicted':self.predicted
         }
         return eventdict
@@ -100,14 +97,17 @@ class Event:
         tweetids = [tweet.id for tweet in self.tweets]
         self.tweets.extend([tweet for tweet in event.tweets if not tweet.id in tweetids])
         self.mentions = len(self.tweets)
-        self.status = 'unstable'
+        self.resolve_overlap_entities()
+        self.order_entities()
+        self.rank_tweets()
         if self.location == False and event.location != False:
-            self.loation = event.location
-        if self.periodic = False and event.periodic != False:
+            self.location = event.location
+        else:
+            self.set_event_location()
+        if self.periodic == False and event.periodic != False:
             self.periodic = event.periodic
-        if self.type == False and event.type != False:
-            self.type = event.type
-        self.status = 'unstable'
+        if self.eventtype == False and event.eventtype != False:
+            self.eventtype = event.eventtype
         self.predicted = False
 
     def entity_overlap(self,e1,e2):
