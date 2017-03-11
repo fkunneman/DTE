@@ -71,10 +71,7 @@ class Event:
     def set_score(self,score):
         self.score = score
 
-    def set_status(self,status):
-        self.status = status
-
-    def predicted(self):
+    def set_predicted(self):
         self.predicted = True
 
     def import_tweets(self,tweets):

@@ -56,10 +56,10 @@ class PeriodicityDetector:
             for entity in event.entities:
                 events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
                 periodics = self.detect_periodicity(events,periodics_threshold)
-              for periodic in periodics:
-                    periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
-                    self.save_periodicity(periodic)
-                    self.apply_periodicity(periodic)
+            for periodic in periodics:
+                periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
+                self.save_periodicity(periodic)
+                self.apply_periodicity(periodic)
         print('distinguishing aperiodic events from periodic events')
         aperiodic_events = set(selection) - set(periodic_events)
         print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
@@ -83,7 +83,7 @@ class PeriodicityDetector:
     def apply_periodicity(self,periodic): # predict future events based on periodic pattern (predict forward one edition)
         pattern = periodic[0]
         editions = periodic[2]
-        last_date = max([editions.datetime for edition in editions])
+        last_date = max([edition.datetime for edition in editions])
         sequence_level = pattern.index('e')
         step = pattern[-1]
         if pattern[3] != 'v': # day pattern
@@ -110,7 +110,7 @@ class PeriodicityDetector:
                     d = str(year) + '-W' + str(week) + '-' + str(weekday)
                     predicted_date = datetime.datetime.strptime(d, '%Y-W%W-%w')
             else: # weekday - week of month
-                week_of_month = pattern[5]
+                week_of_month = pattern[5]-1
                 if sequence_level == 1: # monthly pattern
                     month = last_date.month + step
                     if month > 12:
@@ -145,7 +145,7 @@ class PeriodicityDetector:
         predicted_event.set_cycle('periodic')
         description = self.describe_pattern(pattern)
         predicted_event.set_periodicity({'pattern':pattern,'score':score,'description':description,'editions':editions})
-        predicted_event.predicted()
+        predicted_event.set_predicted()
         self.events.append(predicted_event)
 
     def select_periodics(self,periodics):

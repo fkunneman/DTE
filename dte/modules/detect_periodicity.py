@@ -42,7 +42,7 @@ class DetectPeriodicityTask(Task):
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
-        for ed in eventdicts:
+        for ed in eventdicts[:30000]:
             eventobj = event.Event()
             eventobj.import_eventdict(ed)
             event_objs.append(eventobj)
