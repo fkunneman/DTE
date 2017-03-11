@@ -34,35 +34,37 @@ class PeriodicityDetector:
     def main(self,periodics_threshold):
         self.extract_event_sequences()
         num_entities = len(self.entity_events.keys())
+        periodic_events = []
         for e,entity in enumerate(self.entity_events.keys()):
             events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
             periodics = self.detect_periodicity(events,periodics_threshold)
-            periodic_events = sum([p[2] for p in periodics],[])
-            print('distinguishing aperiodic events from periodic events')
-            aperiodic_events = set(self.events) - set(periodic_events)
-            print('Done. Of the',len(self.events),'events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
             for periodic in periodics:
+                periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
                 self.save_periodicity(periodic)
                 self.apply_periodicity(periodic)
-            for aperiodic in aperiodic_events:
-                aperiodic.set_cycle('aperiodic')
+        print('distinguishing aperiodic events from periodic events')
+        aperiodic_events = set(self.events) - set(periodic_events)
+        print('Done. Of the',len(self.events),'events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
+        for aperiodic in aperiodic_events:
+            aperiodic.set_cycle('aperiodic')
 
     def selective_periodicity(self,periodics_threshold):
         self.extract_entity_sequences()
         selection = [event for event in self.events if not event.cycle]
+        periodic_events = []
         for event in selection:
             for entity in event.entities:
                 events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
                 periodics = self.detect_periodicity(events,periodics_threshold)
-                periodic_events = sum([p[2] for p in periodics],[])
-                print('distinguishing aperiodic events from periodic events')
-                aperiodic_events = set(selection) - set(periodic_events)
-                print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
-                for periodic in periodics:
+              for periodic in periodics:
+                    periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
                     self.save_periodicity(periodic)
                     self.apply_periodicity(periodic)
-                for aperiodic in aperiodic_events:
-                    aperiodic.set_cycle('aperiodic')
+        print('distinguishing aperiodic events from periodic events')
+        aperiodic_events = set(selection) - set(periodic_events)
+        print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
+        for aperiodic in aperiodic_events:
+            aperiodic.set_cycle('aperiodic')
 
     def detect_periodicity(self,events,periodics_threshold): 
         periodics = self.detect_day_periodicity(events) + self.detect_weekday_periodicity(events) + self.detect_weekday_of_month_periodicity(events)
