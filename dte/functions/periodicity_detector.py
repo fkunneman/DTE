@@ -4,6 +4,8 @@ import calendar
 import datetime
 import copy
 
+from dte.classes.event import Event
+
 class PeriodicityDetector:
 
     def __init__(self):
@@ -35,21 +37,32 @@ class PeriodicityDetector:
         for e,entity in enumerate(self.entity_events.keys()):
             events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
             periodics = self.detect_periodicity(events,periodics_threshold)
+            periodic_events = sum([p[2] for p in periodics],[])
+            print('distinguishing aperiodic events from periodic events')
+            aperiodic_events = set(self.events) - set(periodic_events)
+            print('Done. Of the',len(self.events),'events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
             for periodic in periodics:
                 self.save_periodicity(periodic)
                 self.apply_periodicity(periodic)
+            for aperiodic in aperiodic_events:
+                aperiodic.set_cycle('aperiodic')
 
     def selective_periodicity(self,periodics_threshold):
         self.extract_entity_sequences()
-        selection = [event for event in self.events if event.status == 'unstable']
+        selection = [event for event in self.events if not event.cycle]
         for event in selection:
             for entity in event.entities:
                 events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
                 periodics = self.detect_periodicity(events,periodics_threshold)
+                periodic_events = sum([p[2] for p in periodics],[])
+                print('distinguishing aperiodic events from periodic events')
+                aperiodic_events = set(selection) - set(periodic_events)
+                print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
                 for periodic in periodics:
                     self.save_periodicity(periodic)
                     self.apply_periodicity(periodic)
-            event.status = 'stable'
+                for aperiodic in aperiodic_events:
+                    aperiodic.set_cycle('aperiodic')
 
     def detect_periodicity(self,events,periodics_threshold): 
         periodics = self.detect_day_periodicity(events) + self.detect_weekday_periodicity(events) + self.detect_weekday_of_month_periodicity(events)
@@ -60,13 +73,78 @@ class PeriodicityDetector:
         pattern = periodic[0]
         score = periodic[1]
         description = self.describe_pattern(pattern)
-        print(pattern,description,score,self.return_dates(periodic[2]))
         for i,event in enumerate(periodic[2]):
             editions = [edition.mongo_id for edition in periodic[2]]
-            event.set_periodic({'pattern':pattern,'score':score,'description':description,'editions':editions})
+            event.set_cycle('periodic')
+            event.set_periodicity({'pattern':pattern,'score':score,'description':description,'editions':editions})
 
-    def apply_periodicity(self,periodic):
-        
+    def apply_periodicity(self,periodic): # predict future events based on periodic pattern (predict forward one edition)
+        pattern = periodic[0]
+        editions = periodic[2]
+        last_date = max([editions.datetime for edition in editions])
+        sequence_level = pattern.index('e')
+        step = pattern[-1]
+        if pattern[3] != 'v': # day pattern
+            day = pattern[3]
+            if sequence_level == 0: # yearly pattern
+                year = last_date.year+step
+                month = last_date.month
+            elif sequence_level == 1: #monthly pattern
+                month = last_date.month + step
+                if month > 12:
+                    year = last_date.year+1
+                    month = month-12
+                else:
+                    year = last_date.year
+            predicted_date = datetime.datetime(year,month,day)
+        else: # weekday pattern
+            weekday = pattern[4]
+            if pattern[2] != 'v': #week is filled
+                if sequence_level == 2: # weekly pattern
+                    predicted_date = last_date + datetime.timedelta(days = 7*step)
+                else: # yearly pattern
+                    year = last_date.year+step
+                    week = pattern[2]
+                    d = str(year) + '-W' + str(week) + '-' + str(weekday)
+                    predicted_date = datetime.datetime.strptime(d, '%Y-W%W-%w')
+            else: # weekday - week of month
+                week_of_month = pattern[5]
+                if sequence_level == 1: # monthly pattern
+                    month = last_date.month + step
+                    if month > 12:
+                        year = last_date.year+1
+                        month = month-12
+                    else:
+                        year = last_date.year
+                else: # yearly pattern
+                    year = last_date.year+step
+                    month = last_date.month
+                day = calendar.monthcalendar(year,month)[week_of_month][weekday]
+                predicted_date = datetime.datetime(year,month,day)
+        self.set_predicted_event(predicted_date,periodic)
+
+    def set_predicted_event(self,predicted_date,periodic):
+        pattern = periodic[0]
+        score = periodic[1]
+        editions = periodic[2]
+        predicted_event = Event()
+        predicted_event.set_datetime(predicted_date)
+        all_entities = sum([edition.entities for edition in editions],[])
+        consistent_entities = [entity for entity in all_entities if all_entities.count(entity) == len(editions)]
+        predicted_event.add_entities(consistent_entities)
+        all_locations = [edition.location for edition in editions]
+        location = max(set(all_locations), key=all_locations.count)
+        if (location != False and all_locations.count(location) >= (len(editions)/2)):
+            predicted_event.location = location 
+        all_eventtypes = [edition.eventtype for edition in editions]
+        eventtype = max(set(all_eventtypes), key=all_eventtypes.count)
+        if (eventtype != False and all_eventtypes.count(eventtype) >= (len(editions)/2)):
+            predicted_event.eventtype = eventtype
+        predicted_event.set_cycle('periodic')
+        description = self.describe_pattern(pattern)
+        predicted_event.set_periodicity({'pattern':pattern,'score':score,'description':description,'editions':editions})
+        predicted_event.predicted()
+        self.events.append(predicted_event)
 
     def select_periodics(self,periodics):
         selection = [periodics[0]]

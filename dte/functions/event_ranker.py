@@ -123,8 +123,6 @@ class EventRanker:
                 filtered_events.append(event)
         self.events = filtered_events
 
-
-
     def assess_hashtag_consistency(self,event):
         all_hashtags = sum([[x for x in tweet.entities if x[0] == '#'] for tweet in event.tweets],[])
         all_unique_hashtags = list(set(all_hashtags))

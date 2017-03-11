@@ -20,10 +20,11 @@ class Event:
         self.location = False
         self.tweets = []
         self.mentions = 1
-        self.periodic = False
+        self.cycle = False
+        self.periodicity = False
+        self.predicted = False
         self.anticipointment = False
         self.eventtype = False
-        self.predicted = False
 
     def import_eventdict(self,eventdict):
         self.mongo_id = eventdict['mongo_id'] if 'mongo_id' in eventdict.keys() else False
@@ -33,10 +34,11 @@ class Event:
         self.location = eventdict['location'] if 'location' in eventdict.keys() else False
         self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
         self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
-        self.periodic = eventdict['periodic'] if 'periodic' in eventdict.keys() else False 
+        self.cycle = eventdict['cycle'] if 'cycle' in eventdict.keys() else False 
+        self.periodicity = eventdict['periodicity'] if 'periodicity' in eventdict.keys() else False 
+        self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
         self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False 
-        self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
 
     def return_dict(self):
         eventdict = {
@@ -46,11 +48,12 @@ class Event:
             'score':self.score,
             'location':self.location,
             'tweets':[tweet.return_dict() for tweet in self.tweets],
+            'cycle':self.cycle,
             'mentions':self.mentions,
-            'periodic':self.periodic,
+            'periodicity':self.periodicity,
+            'predicted':self.predicted,
             'anticipointment':self.anticipointment,
-            'eventtype':self.eventtype,
-            'predicted':self.predicted
+            'eventtype':self.eventtype
         }
         return eventdict
 
@@ -88,8 +91,11 @@ class Event:
     def add_mention(self,n=1):
         self.mentions += 1
 
-    def set_periodic(self,periodic): # dictionary
-        self.periodic = periodic
+    def set_cycle(self,cycle): # str: 'periodic' or 'aperiodic'
+        self.cycle = cycle
+
+    def set_periodicity(self,periodicity): # dict with periodic pattern, score and editions, if available
+        self.periodicity = periodicity
 
     def merge(self,event):
         self.score = max(self.score,event.score)
@@ -104,8 +110,9 @@ class Event:
             self.location = event.location
         else:
             self.set_event_location()
-        if self.periodic == False and event.periodic != False:
-            self.periodic = event.periodic
+        if self.cycle == 'aperiodic' and event.cycle == 'periodic':
+            self.cycle = 'periodic' 
+            self.periodicity = event.periodicity
         if self.eventtype == False and event.eventtype != False:
             self.eventtype = event.eventtype
         self.predicted = False
