@@ -56,10 +56,10 @@ class PeriodicityDetector:
             for entity in event.entities:
                 events = sorted(self.entity_events[entity],key = lambda k : k.datetime)
                 periodics = self.detect_periodicity(events,periodics_threshold)
-            for periodic in periodics:
-                periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
-                self.save_periodicity(periodic)
-                self.apply_periodicity(periodic)
+              for periodic in periodics:
+                    periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
+                    self.save_periodicity(periodic)
+                    self.apply_periodicity(periodic)
         print('distinguishing aperiodic events from periodic events')
         aperiodic_events = set(selection) - set(periodic_events)
         print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
@@ -83,7 +83,7 @@ class PeriodicityDetector:
     def apply_periodicity(self,periodic): # predict future events based on periodic pattern (predict forward one edition)
         pattern = periodic[0]
         editions = periodic[2]
-        last_date = max([edition.datetime for edition in editions])
+        last_date = max([editions.datetime for edition in editions])
         sequence_level = pattern.index('e')
         step = pattern[-1]
         if pattern[3] != 'v': # day pattern
@@ -110,7 +110,7 @@ class PeriodicityDetector:
                     d = str(year) + '-W' + str(week) + '-' + str(weekday)
                     predicted_date = datetime.datetime.strptime(d, '%Y-W%W-%w')
             else: # weekday - week of month
-                week_of_month = pattern[5]-1
+                week_of_month = pattern[5]
                 if sequence_level == 1: # monthly pattern
                     month = last_date.month + step
                     if month > 12:
@@ -121,7 +121,8 @@ class PeriodicityDetector:
                 else: # yearly pattern
                     year = last_date.year+step
                     month = last_date.month
-                day = calendar.monthcalendar(year,month)[week_of_month][weekday]
+                subtract = 0 if (calendar.monthcalendar(year,month)[0][weekday] == 0) else 1
+                day = calendar.monthcalendar(year,month)[week_of_month-subtract][weekday]
                 predicted_date = datetime.datetime(year,month,day)
         self.set_predicted_event(predicted_date,periodic)
 
@@ -145,7 +146,7 @@ class PeriodicityDetector:
         predicted_event.set_cycle('periodic')
         description = self.describe_pattern(pattern)
         predicted_event.set_periodicity({'pattern':pattern,'score':score,'description':description,'editions':editions})
-        predicted_event.set_predicted()
+        predicted_event.predicted()
         self.events.append(predicted_event)
 
     def select_periodics(self,periodics):
@@ -351,12 +352,14 @@ class PeriodicityDetector:
         return [date.weekday() for date in list(set(dates))]
 
     def return_week_of_month_sequence(self,dates):
-        return [self.return_week_of_month(date) for date in list(set(dates))]
+        return [self.return_week_of_month(date,weekday) for date in list(set(dates))]
 
     def return_week_of_month(self,date):
+        add = 0 if (calendar.monthcalendar(date.year,date.month)[0][date.weekday()]) == 0 else 1
         for i,week_of_month_days in enumerate(calendar.monthcalendar(date.year,date.month)):
             if date.day in week_of_month_days:
-                return i+1
+                week = i 
+                return i+add
 
     def return_week_sequence(self,dates):
         return [date.isocalendar()[1] for date in list(set(dates))]
@@ -380,7 +383,7 @@ class PeriodicityDetector:
         return candidates
 
     def detect_recurring_weekdays_of_month(self,dates):
-        week_of_month_sequence = self.return_week_of_month_sequence(dates)
+        week_of_month_sequence = self.return_week_of_month_sequence(dates,weekday)
         candidates = [week_of_month for week_of_month in list(set(week_of_month_sequence)) if week_of_month_sequence.count(week_of_month) > 2]
         return candidates
 
