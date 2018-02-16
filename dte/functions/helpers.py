@@ -8,7 +8,7 @@ def remove_pattern_from_string(string,patterns):
     try:
         stripped_string = re.split(regexPattern,string)
     except:
-        stripped_string = string
+        stripped_string = [string]
     return stripped_string
 
 def return_date_entitytweetfile(tweetfile):
