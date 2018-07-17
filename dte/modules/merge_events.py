@@ -82,6 +82,73 @@ class IntegrateEventsTask(Task):
         with open(self.out_integrated_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_integrated_events,file_out)
 
+
+@registercomponent
+class IntegrateEventDir(StandardWorkflowComponent):
+
+    overlap_threshold = Parameter(default = 0.2)
+
+    def accepts(self):
+        return InputFormat(self, format_id='eventdir', extension='.events')
+
+    def autosetup(self):
+        return IntegrateEventDirTask
+
+class IntegrateEventDirTask(Task):
+
+    ### task to speed up event integration for sliding window event extraction
+    ### make sure that all events in the directory are deduplicated and enhanced before running this task
+    ### only files with extension '.enhanced' will be integrated
+
+    in_eventdir = InputSlot()
+
+    overlap_threshold = Parameter()
+
+    def out_integrated_events(self):
+        return self.outputfrominput(inputformat='eventdir', stripextension='.events', addextension='events.integrated')
+
+    def run(self):
+
+        # collect all event files with extension '.enhanced'
+        enhanced_events = glob.glob(self.in_eventdir().path + '/*')
+
+        # initialize
+        merger = event_merger.EventMerger()
+        overlap_threshold = float(self.overlap_threshold)
+
+        # for each event file
+        for eventfile in enhanced_events:
+            print('Reading',eventfile)
+            with open(eventfile, 'r', encoding = 'utf-8') as file_in:
+                current_eventdicts = json.loads(file_in.read())
+            new_event_objs = []
+            for ed in current_eventdicts:
+                eventobj = event.Event()
+                eventobj.import_eventdict(ed)
+                new_event_objs.append(eventobj)
+            # merge before integration
+            print('Merging new events before integration; number of events at start:',len(new_event_objs))
+            premerger = event_merger.EventMerger()
+            premerger.add_events(new_event_objs)
+            premerger.find_merges(overlap_threshold)
+            new_events_merged = premerger.return_events()
+            print('Done. New events after merge:',len(new_events_merged))
+            if len(merger.events) == 0:
+                merger.add_events(new_events_merged)
+            else:
+                # integrate each event into the current ones
+                print('Starting integrating new events; number of current events:',len(merger.events))
+                for new_event in new_events_merged:
+                    merger.find_merge(new_event,overlap_threshold)            
+
+        # write merged 
+        integrated_events = merger.return_events()
+        print('Done. Number of events after integration:',len(integrated_events))
+        out_integrated_events = [event.return_dict() for event in integrated_events]
+        with open(self.out_integrated_events().path,'w',encoding='utf-8') as file_out:
+            json.dump(out_integrated_events,file_out)
+
+
 ################################################################################
 ###Event merger
 ################################################################################
