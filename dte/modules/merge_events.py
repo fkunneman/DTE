@@ -39,19 +39,6 @@ class IntegrateEventsTask(Task):
 
     def run(self):
 
-        # read in current events
-        with open(self.current_events, 'r', encoding = 'utf-8') as file_in:
-            current_eventdicts = json.loads(file_in.read())
-        current_event_objs = []
-        for ed in current_eventdicts:
-            eventobj = event.Event()
-            eventobj.import_eventdict(ed)
-            current_event_objs.append(eventobj)
-
-        # initialize event merger
-        merger = event_merger.EventMerger()
-        merger.add_events(current_event_objs)
-
         # read in new events
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             new_eventdicts = json.loads(file_in.read())
@@ -60,6 +47,24 @@ class IntegrateEventsTask(Task):
             eventobj = event.Event()
             eventobj.import_eventdict(ed)    
             new_event_objs.append(eventobj)    
+        earliest_date = min([event.datetime for event in new_event_objs])
+
+        # read in current events
+        with open(self.current_events, 'r', encoding = 'utf-8') as file_in:
+            current_eventdicts = json.loads(file_inz.read())
+        current_event_objs = []
+        current_event_objs_candidates = []
+        for ed in current_eventdicts:
+            eventobj = event.Event()
+            eventobj.import_eventdict(ed)
+            if eventobj.datetime >= earliest_date:
+                current_event_objs_candidates.append(eventobj)
+            else:
+                current_event_objs.append(eventobj)
+
+        # initialize event merger
+        merger = event_merger.EventMerger()
+        merger.add_events(current_event_objs_candidates)
 
         # merge before integration
         print('Merging new events before integration; number of events at start:',len(new_event_objs))
@@ -76,7 +81,7 @@ class IntegrateEventsTask(Task):
             merger.find_merge(new_event,overlap_threshold)
 
         # write merged 
-        integrated_events = merger.return_events()
+        integrated_events = merger.return_events() + current_event_objs
         print('Done. Number of events after integration:',len(integrated_events))
         out_integrated_events = [event.return_dict() for event in integrated_events]
         with open(self.out_integrated_events().path,'w',encoding='utf-8') as file_out:
