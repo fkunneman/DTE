@@ -110,7 +110,7 @@ class IntegrateEventDirTask(Task):
     def run(self):
 
         # collect all event files with extension '.enhanced'
-        enhanced_events = glob.glob(self.in_eventdir().path + '/*')
+        enhanced_events = glob.glob(self.in_eventdir().path + '/*.enhanced')
 
         # initialize
         merger = event_merger.EventMerger()
