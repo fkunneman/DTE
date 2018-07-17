@@ -35,7 +35,7 @@ class IntegrateEventsTask(Task):
     overlap_threshold = Parameter()
 
     def out_integrated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='', addextension='.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.enhanced' if self.in_events().path[-3:] == 'ced' else '.integrated', addextension='.integrated' if self.in_events().path[-3:] =='ced' else '.more.integrated')
 
     def run(self):
 
