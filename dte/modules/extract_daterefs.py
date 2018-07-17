@@ -53,7 +53,7 @@ class ExtractDateref(StandardWorkflowComponent):
     skip_timeunitmatch = BoolParameter()
     skip_daymatch = BoolParameter()
 
-    config = Parameter()
+    config = Parameter(default=False)
     strip_punctuation = BoolParameter()
     to_lowercase = BoolParameter()
 

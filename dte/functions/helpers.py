@@ -5,7 +5,10 @@ from dateutil import rrule
 
 def remove_pattern_from_string(string,patterns):
     regexPattern = '|'.join(map(re.escape,patterns))
-    stripped_string = re.split(regexPattern,string)
+    try:
+        stripped_string = re.split(regexPattern,string)
+    except:
+        stripped_string = [string]
     return stripped_string
 
 def return_date_entitytweetfile(tweetfile):

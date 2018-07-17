@@ -42,8 +42,11 @@ class EventMerger:
 
     def has_overlap(self,event1,event2,overlap_threshold):
         intersect = list(set([tweet.id for tweet in event1.tweets]) & set([tweet.id for tweet in event2.tweets]))
-        overlap_percent = len(intersect) / len(event1.tweets)
-        overlap = True if overlap_percent > overlap_threshold else False
+        if len(event1.tweets) > 0:
+            overlap_percent = len(intersect) / len(event1.tweets)
+            overlap = True if overlap_percent > overlap_threshold else False
+        else:
+            overlap = False
         if not overlap and (set(event1.entities) == set(event2.entities)):
             overlap = True
         return overlap

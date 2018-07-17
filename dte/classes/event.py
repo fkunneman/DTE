@@ -112,7 +112,8 @@ class Event:
             self.periodicity = event.periodicity
         if self.eventtype == False and event.eventtype != False:
             self.eventtype = event.eventtype
-        self.predicted = False
+        if not (self.predicted and event.predicted): 
+            self.predicted = False
 
     def entity_overlap(self,e1,e2):
         if set(e1.split()) & set(e2.split()):
