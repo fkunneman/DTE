@@ -48,15 +48,15 @@ class IntegrateEventsTask(Task):
             eventobj.import_eventdict(ed)    
             new_event_objs.append(eventobj)    
         earliest_date = min([event.datetime for event in new_event_objs])
-
+        
         # read in current events
         with open(self.current_events, 'r', encoding = 'utf-8') as file_in:
-            current_eventdicts = json.loads(file_inz.read())
+            current_eventdicts = json.loads(file_in.read())
         current_event_objs = []
         current_event_objs_candidates = []
         for ed in current_eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed)
+            eventobj.import_eventdict(ed)   
             if eventobj.datetime >= earliest_date:
                 current_event_objs_candidates.append(eventobj)
             else:

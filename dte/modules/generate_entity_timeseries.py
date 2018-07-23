@@ -22,7 +22,7 @@ class GetEntityTimeseries(WorkflowComponent):
     events = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.enhanced',inputparameter='events') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -99,7 +99,7 @@ class CountEntities(WorkflowComponent):
     date = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.enhanced',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts') ) ]
 
     def setup(self, workflow, input_feeds):
 

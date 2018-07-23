@@ -8,7 +8,7 @@ import datetime
 from collections import defaultdict
 
 from dte.functions import event_filter
-from dte.classes import event
+from dte.classes import event, tweet
 
 @registercomponent
 class CollectEventTweets(WorkflowComponent):
@@ -20,11 +20,11 @@ class CollectEventTweets(WorkflowComponent):
     burstiness_threshold = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.enhanced',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.entity_burstiness',inputparameter='entity_burstiness') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.entity_burstiness.json',inputparameter='entity_burstiness') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        tweet_collector = workflow.new_task('count_entities', CountEntitiesTask, autopass=False, date=self.date)
+        tweet_collector = workflow.new_task('collect_event_tweets', CollectEventTweetsTask, autopass=False, burstiness_threshold=self.burstiness_threshold)
         tweet_collector.in_tweetdir = input_feeds['tweetdir']
         tweet_collector.in_events = input_feeds['events']
         tweet_collector.in_entity_burstiness = input_feeds['entity_burstiness']
@@ -40,7 +40,7 @@ class CollectEventTweetsTask(Task):
     burstiness_threshold = Parameter()
 
     def out_more_tweets(self):
-        return self.outputfrominput(inputformat='events', stripextension='.enhanced', addextension='.more_tweets')
+        return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.more_tweets.events')
 
     def run(self):
 
@@ -50,13 +50,13 @@ class CollectEventTweetsTask(Task):
         bursty_entities = []
         with open(self.in_entity_burstiness().path,'r',encoding='utf-8') as file_in:
             for line in file_in.readlines():
-                tokens = entity_burstiness.strip().split('\t')
+                tokens = line.strip().split('\t')
                 if float(tokens[3]) >= burstiness_threshold:
                     bursty_entities.append(tokens[0])
         bursty_entities = set(bursty_entities)
 
         # read in events
-        entity_events_dates = defaultdict(list)
+        date_term_events = defaultdict(lambda : defaultdict(list))
         events = []
         print('Reading in events')
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
@@ -64,32 +64,25 @@ class CollectEventTweetsTask(Task):
         for ed in eventdicts:
             eventobj = event.Event()
             eventobj.import_eventdict(ed)
-            for entity in list(set(eventobj.entities) & bursty_entities):
-                entity_events_dates[entity].append([event.datetime,event])
-            events.append(eventobj)
-
-        # generate date-term-event dictionary
-        date_term_events = defaultdict(lambda : defaultdict(list))
-        for event in events:
-            entities = event.entities
-            be = list(set(entities) & burty_entities) 
+            entities = eventobj.entities
+            be = list(set(entities) & bursty_entities) 
             if len(be) > 0: # event has bursty entities that can be used to collect more tweets
                 # in a window of three weeks prior to the event and three weeks after the event 
-                collect_start = event.date - datetime.timedelta(days=21)
-                collect_end = event.date + datetime.timedelta(days=21)
+                collect_start = eventobj.datetime.date() - datetime.timedelta(days=21)
+                collect_end = eventobj.datetime.date() + datetime.timedelta(days=21)
                 cursor = collect_start
-            while cursor <= collect_end and cursor <= datetime.date.today():
-                for entity in be:
-                    date_term_events[cursor][entity].append(event)
-                cursor = cursor + datetime.timedelta(days=1)
+                while cursor <= collect_end and cursor <= datetime.date.today():
+                    for entity in be:
+                        date_term_events[cursor][entity].append(eventobj)
+                    cursor = cursor + datetime.timedelta(days=1)
+            events.append(eventobj)
 
         # count current status
-        all_tweets = sum([len(event.tweets) for event in events])
+        all_tweets = sum([len(eventobj.tweets) for eventobj in events])
         print('STATUS AT START:',all_tweets,'TWEETS IN TOTAL')
 
         # go through all tweet dirs
-        # tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
-        tweetsubdirs = [self.in_tweetdir().path + '/201806']
+        tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
         cursordate = datetime.date(2008,8,8) # initializing to print progress
         for tweetsubdir in tweetsubdirs:
             print(tweetsubdir)
@@ -105,23 +98,24 @@ class CollectEventTweetsTask(Task):
                     tweetobj = tweet.Tweet()
                     tweetobj.import_tweetdict(td)
                     tweets.append(tweetobj)
-                tweets_date = tweets[0].datetime
-                if tweets_date != cursordate: # to print progress
-                    print(tweets_date)
-                    cursordate = tweets_date
-                queries = date_term_events[tweets_date].keys()
-                for tweet in tweets:
-                    matches = list(set(queries) & set(tweet.entities))
-                    if len(matches) > 0:
-                        for match in matches:
-                            for event in date_term_events[tweets_date][match]:
-                                event.add_tweet(tweet)
+                if len(tweets) > 0:
+                    tweets_date = tweets[0].datetime.date()
+                    if tweets_date != cursordate: # to print progress
+                        print(tweets_date)
+                        cursordate = tweets_date
+                    queries = date_term_events[tweets_date].keys()
+                    for tweetobj in tweets:
+                        matches = list(set(queries) & set(tweetobj.entities))
+                        if len(matches) > 0:
+                            for match in matches:
+                                for eventobj in date_term_events[tweets_date][match]:
+                                    eventobj.add_tweet(tweetobj)
             # count current status
-            all_tweets = sum([len(event.tweets) for event in events])
-            print('STATUS AT AFTER SUBDIR',tweetsubdir,':',all_tweets,'TWEETS IN TOTAL')
+            all_tweets = sum([len(eventobj.tweets) for eventobj in events])
+            print('STATUS AFTER SUBDIR',tweetsubdir,':',all_tweets,'TWEETS IN TOTAL')
 
         # write new event file
         print('Done. Writing to file')
-        out_events = [event.return_dict() for event in events]
+        out_events = [eventobj.return_dict() for eventobj in events]
         with open(self.out_more_tweets().path,'w',encoding='utf-8') as file_out:
             json.dump(out_events,file_out)
