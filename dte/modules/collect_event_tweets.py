@@ -82,9 +82,13 @@ class CollectEventTweetsTask(Task):
         print('STATUS AT START:',all_tweets,'TWEETS IN TOTAL')
 
         # go through all tweet dirs
+        last_outfile = False
         tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
         cursordate = datetime.date(2008,8,8) # initializing to print progress
         for tweetsubdir in tweetsubdirs:
+            subdirstr = tweetsubdir.split('/')[-1]
+            print('SUBDIRSTR',subdirstr)
+            new_outfile = self.out_more_tweets().path + '_subdirstr.json'
             print(tweetsubdir)
             # go through all tweet files
             tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
@@ -101,7 +105,7 @@ class CollectEventTweetsTask(Task):
                 if len(tweets) > 0:
                     tweets_date = tweets[0].datetime.date()
                     if tweets_date != cursordate: # to print progress
-                        print(tweets_date)
+                        print(tweets_date,'Queries:',date_term_events[tweets_date].keys())
                         cursordate = tweets_date
                     queries = date_term_events[tweets_date].keys()
                     for tweetobj in tweets:
@@ -112,7 +116,13 @@ class CollectEventTweetsTask(Task):
                                     eventobj.add_tweet(tweetobj)
             # count current status
             all_tweets = sum([len(eventobj.tweets) for eventobj in events])
-            print('STATUS AFTER SUBDIR',tweetsubdir,':',all_tweets,'TWEETS IN TOTAL')
+            print('STATUS AFTER SUBDIR',tweetsubdir,':',all_tweets,'TWEETS IN TOTAL, NOW WRITING TO FILE')
+            out_events = [eventobj.return_dict() for eventobj in events if eventobj.datetime.year == int(subdirstr[:4]) and eventobj.datetime.month == int(subdirstr[4:6])]
+            with open(new_outfile,'w',encoding='utf-8') as file_out:
+                json.dump(out_events,file_out)
+            if last_outfile:
+                os.system('rm ' + last_outfile)
+            last_outfile = new_outfile
 
         # write new event file
         print('Done. Writing to file')

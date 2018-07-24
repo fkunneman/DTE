@@ -83,7 +83,8 @@ class Event:
         return imported_tweets
 
     def add_tweet(self,tweet):
-        self.tweets.append(tweet)
+        if not set([tweet.id]) & set([x.id for x in self.tweets]):
+            self.tweets.append(tweet)
 
     def add_mention(self,n=1):
         self.mentions += 1
