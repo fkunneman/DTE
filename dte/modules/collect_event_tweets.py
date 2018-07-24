@@ -20,7 +20,7 @@ class CollectEventTweets(WorkflowComponent):
     burstiness_threshold = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.entity_burstiness.json',inputparameter='entity_burstiness') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.burstiness.json',inputparameter='entity_burstiness') ) ]
 
     def setup(self, workflow, input_feeds):
 

@@ -20,13 +20,15 @@ class AssessBurstiness(WorkflowComponent):
 
     entity_counts = Parameter()
     events = Parameter()
-    
+
+    date = Parameter() # to define the output file
+
     def accepts(self):
-        return [ ( InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts'), InputFormat(self,format_id='events',extension='.merged',inputparameter='events') ) ]
+        return [ ( InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        burstiness_assessor = workflow.new_task('assess_burstiness', AssessBurstinessTask, autopass=False)
+        burstiness_assessor = workflow.new_task('assess_burstiness', AssessBurstinessTask, autopass=False, date=self.date)
         burstiness_assessor.in_entity_counts = input_feeds['entity_counts']
         burstiness_assessor.in_events = input_feeds['events']
 
@@ -36,9 +38,11 @@ class AssessBurstinessTask(Task):
 
     in_entity_counts = InputSlot()
     in_events = InputSlot()
+    
+    date = Parameter()
 
     def out_entity_burstiness(self):
-        return self.outputfrominput(inputformat='entity_counts', stripextension='.entity_counts', addextension='.entity_burstiness.json')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.entity_counts', addextension='.entity_counts.' + self.date + '.burstiness.json')
 
     def run(self):
 
