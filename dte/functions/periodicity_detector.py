@@ -41,7 +41,10 @@ class PeriodicityDetector:
             for periodic in periodics:
                 periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
                 self.save_periodicity(periodic)
-                self.apply_periodicity(periodic)
+                try:
+                    self.apply_periodicity(periodic)
+                except:
+                    print('Could not apply periodicity for events',[edition.datetime for edition in periodic[2]])
         print('distinguishing aperiodic events from periodic events')
         aperiodic_events = set(self.events) - set(periodic_events)
         print('Done. Of the',len(self.events),'events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
@@ -59,7 +62,10 @@ class PeriodicityDetector:
                 for periodic in periodics:
                     periodic_events.extend(list(set(sum([p[2] for p in periodics],[]))))
                     self.save_periodicity(periodic)
-                    self.apply_periodicity(periodic)
+                    try:
+                        self.apply_periodicity(periodic)
+                    except:
+                        print('Could not apply periodicity for events',[edition.datetime for edition in periodic[2]])
         print('distinguishing aperiodic events from periodic events')
         aperiodic_events = set(selection) - set(periodic_events)
         print('Done. Of the',len(selection),'new events,',len(periodic_events),'are periodic, and',len(aperiodic_events),'are aperiodic') 
@@ -428,7 +434,7 @@ class PeriodicityDetector:
 
     def return_candidate_events_day(self,events,day):
         return [event for event in events if event.datetime.day == day]
-        
+
     def return_candidate_events_weekday(self,events,weekday):
         return [event for event in events if event.datetime.weekday() == weekday]
 

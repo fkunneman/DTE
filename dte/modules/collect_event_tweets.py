@@ -17,14 +17,15 @@ class CollectEventTweets(WorkflowComponent):
     events = Parameter()
     entity_burstiness = Parameter()
 
-    burstiness_threshold = Parameter()
+    burstiness_threshold = Parameter(default=10)
+    date = Parameter(default=False)
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.burstiness.json',inputparameter='entity_burstiness') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        tweet_collector = workflow.new_task('collect_event_tweets', CollectEventTweetsTask, autopass=False, burstiness_threshold=self.burstiness_threshold)
+        tweet_collector = workflow.new_task('collect_event_tweets', CollectEventTweetsTask, autopass=False, burstiness_threshold=self.burstiness_threshold,date=self.date)
         tweet_collector.in_tweetdir = input_feeds['tweetdir']
         tweet_collector.in_events = input_feeds['events']
         tweet_collector.in_entity_burstiness = input_feeds['entity_burstiness']
@@ -38,6 +39,7 @@ class CollectEventTweetsTask(Task):
     in_entity_burstiness = InputSlot()
 
     burstiness_threshold = Parameter()
+    date = Parameter()
 
     def out_more_tweets(self):
         return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.more_tweets.events')
@@ -82,14 +84,12 @@ class CollectEventTweetsTask(Task):
         print('STATUS AT START:',all_tweets,'TWEETS IN TOTAL')
 
         # go through all tweet dirs
-        last_outfile = False
-        tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
+        tweetsubdirs = sorted([ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ],reverse=True)
         cursordate = datetime.date(2008,8,8) # initializing to print progress
         for tweetsubdir in tweetsubdirs:
             subdirstr = tweetsubdir.split('/')[-1]
             print('SUBDIRSTR',subdirstr)
-            new_outfile = self.out_more_tweets().path + '_subdirstr.json'
-            print(tweetsubdir)
+            new_outfile = self.out_more_tweets().path + '_' + subdirstr + '.json'
             # go through all tweet files
             tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
             date_tweets = defaultdict(list)
@@ -105,7 +105,7 @@ class CollectEventTweetsTask(Task):
                 if len(tweets) > 0:
                     tweets_date = tweets[0].datetime.date()
                     if tweets_date != cursordate: # to print progress
-                        print(tweets_date,'Queries:',date_term_events[tweets_date].keys())
+                        print(tweets_date,'Queries:',len(date_term_events[tweets_date].keys()))
                         cursordate = tweets_date
                     queries = date_term_events[tweets_date].keys()
                     for tweetobj in tweets:
@@ -120,9 +120,6 @@ class CollectEventTweetsTask(Task):
             out_events = [eventobj.return_dict() for eventobj in events if eventobj.datetime.year == int(subdirstr[:4]) and eventobj.datetime.month == int(subdirstr[4:6])]
             with open(new_outfile,'w',encoding='utf-8') as file_out:
                 json.dump(out_events,file_out)
-            if last_outfile:
-                os.system('rm ' + last_outfile)
-            last_outfile = new_outfile
 
         # write new event file
         print('Done. Writing to file')

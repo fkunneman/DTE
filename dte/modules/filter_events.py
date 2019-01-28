@@ -9,32 +9,38 @@ from collections import defaultdict
 
 from dte.functions import event_filter
 from dte.classes import event
+from dte.modules.merge_events import MergeEvents
 
 @registercomponent
 class FilterEvents(StandardWorkflowComponent):
 
     citylist = Parameter()
+    overlap_threshold = Parameter(default = 0.2)
+    similarity_threshold = Parameter(default = 0.7)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.merged')
+        return (
+            InputFormat(self, format_id='merged_events', extension='.merged'),
+            InputComponent(self, MergeEvents, overlap_threshold=self.overlap_threshold,similarity_threshold=self.similarity_threshold)
+        )
 
     def autosetup(self):
         return FilterEventsTask
 
 class FilterEventsTask(Task):
 
-    in_events = InputSlot()
+    in_merged_events = InputSlot()
 
     citylist = Parameter()
 
     def out_filtered_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.merged', addextension='.filtered')
+        return self.outputfrominput(inputformat='merged_events', stripextension='.merged', addextension='.filtered')
 
     def run(self):
 
         # read in events
         print('Reading in events')
-        with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
+        with open(self.in_merged_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
         for ed in eventdicts:

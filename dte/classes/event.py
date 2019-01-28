@@ -115,6 +115,9 @@ class Event:
             self.eventtype = event.eventtype
         if not (self.predicted and event.predicted): 
             self.predicted = False
+        elif not (self.predicted) and event.predicted:
+            self.predicted = event.predicted 
+            
 
     def entity_overlap(self,e1,e2):
         if set(e1.split()) & set(e2.split()):

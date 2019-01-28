@@ -72,7 +72,7 @@ class ExtendPeriodicity(StandardWorkflowComponent):
     periodicity_threshold = Parameter(default = 0.6)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.lecl.events.integrated')
+        return InputFormat(self, format_id='events', extension='.lecl.events')
 
     def autosetup(self):
         return ExtendPeriodicityTask
@@ -84,7 +84,7 @@ class ExtendPeriodicityTask(Task):
     periodicity_threshold = Parameter()
 
     def out_periodic_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.lecl.events.integrated', addextension='.periodic.lecl.events.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.lecl.events', addextension='.periodic.lecl.events')
 
     def run(self):
 

@@ -36,7 +36,7 @@ class EntityExtractor:
         return matches
 
     def extract_entities_commonness(self,tokens,maximum_token_length_entity=5):
-        ngrams = sum([self.extract_ngrams(tokens,token_length) for token_length in range(maximum_token_length_entity)],[]) 
+        ngrams = sum([self.extract_ngrams(tokens,token_length) for token_length in range(maximum_token_length_entity)],[])
         matches = self.match_entities_ngrams(ngrams)
         self.entities.extend(matches)
 

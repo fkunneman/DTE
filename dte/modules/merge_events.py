@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from dte.functions import event_merger
 from dte.classes import event
-
+from dte.modules.enhance_events import EnhanceEvents
 
 ################################################################################
 ###Event integrator
@@ -22,7 +22,7 @@ class IntegrateEvents(StandardWorkflowComponent):
     overlap_threshold = Parameter(default = 0.2)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.enhanced'), InputFormat(self, format_id='events', extension='.integrated')
+        return InputFormat(self, format_id='events', extension='.enhanced'), InputFormat(self, format_id='events', extension='.integrated'), InputFormat(self, format_id='events', extension='.types')
 
     def autosetup(self):
         return IntegrateEventsTask
@@ -35,7 +35,7 @@ class IntegrateEventsTask(Task):
     overlap_threshold = Parameter()
 
     def out_integrated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.enhanced' if self.in_events().path[-3:] == 'ced' else '.integrated', addextension='.integrated' if self.in_events().path[-3:] =='ced' else '.more.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.enhanced' if self.in_events().path[-3:] == 'ced' else '.types' if self.in_events().path[-3:] == 'pes' else 'integrated', addextension='.more.integrated' if self.in_events().path[-3:] == 'ted' else '.integrated')
 
     def run(self):
 
@@ -162,26 +162,30 @@ class IntegrateEventDirTask(Task):
 class MergeEvents(StandardWorkflowComponent):
 
     overlap_threshold = Parameter(default = 0.2)
+    similarity_threshold = Parameter(default = 0.7)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.integrated')
+        return (
+            InputFormat(self, format_id='enhanced_events', extension='.enhanced'),
+            InputComponent(self, EnhanceEvents, similarity_threshold=self.similarity_threshold)
+        )
 
     def autosetup(self):
         return MergeEventsTask
 
 class MergeEventsTask(Task):
 
-    in_events = InputSlot()
+    in_enhanced_events = InputSlot()
 
     overlap_threshold = Parameter()
 
     def out_merged_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.integrated', addextension='.merged')
+        return self.outputfrominput(inputformat='enhanced_events', stripextension='.enhanced', addextension='.merged')
 
     def run(self):
 
         # read in events
-        with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
+        with open(self.in_enhanced_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
         event_objs = []
         for ed in eventdicts:

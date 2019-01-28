@@ -24,7 +24,7 @@ class AssessBurstiness(WorkflowComponent):
     date = Parameter() # to define the output file
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
+        return [ ( InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts'), InputFormat(self,format_id='events',extension='.integrated',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
