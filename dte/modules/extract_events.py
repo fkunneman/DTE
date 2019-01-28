@@ -18,6 +18,7 @@ from dte.classes import event, tweet
 class ExtractEventsSlider(StandardWorkflowComponent):
 
     start_date = Parameter()
+    citylist = Parameter()
     end_date = Parameter()
     window_size = IntParameter(default=30)
     slider = IntParameter(default=1)
@@ -35,6 +36,7 @@ class ExtractEventsSliderTask(Task):
 
     in_tweetdir = InputSlot()
 
+    citylist = Parameter()
     start_date = Parameter()
     end_date = Parameter()
     window_size = IntParameter()
@@ -60,6 +62,11 @@ class ExtractEventsSliderTask(Task):
         start_date_day = self.start_date[6:]
         first_date = datetime.date(int(start_date_year),int(start_date_month),int(start_date_day))
         
+        print('Reading in citylist')
+        # read in citylist
+        with open(self.citylist,'r',encoding='utf-8') as file_in:
+            citylist = [line.strip() for line in file_in.read().strip().split('\n')]
+
         # perform event extraction on first tweet window
         print('Reading in first window of tweets')
         cursor_date = first_date
@@ -90,9 +97,13 @@ class ExtractEventsSliderTask(Task):
             er.tweet_count += date_tweetcounts[date]               
         print('Performing event extraction')
         er.extract_events(self.minimum_event_mentions,self.cut_off)
-        print('Done. Extracted',len(er.events),'events')        
+        filter = event_filter.EventFilter()
+        filter.add_events(er.events)
+        filter.apply_filter(citylist)
+        events_filtered = filter.return_events()
+        print('Done. Extracted',len(events_filtered),'events')        
         # write to file
-        outevents = [event.return_dict() for event in er.events]
+        outevents = [event.return_dict() for event in events_filtered]
         with open(self.out_eventdir().path + '/' + str(cursor_date-datetime.timedelta(days=1)).replace('-','') + '.events','w',encoding='utf-8') as file_out:
             json.dump(outevents,file_out)
 
@@ -133,9 +144,13 @@ class ExtractEventsSliderTask(Task):
                 er.tweet_count += date_tweetcounts[date]
             print('Performing event extraction')
             er.extract_events(self.minimum_event_mentions,self.cut_off)
-            print('Done. Extracted',len(er.events),'events')                    
+            filter = event_filter.EventFilter()
+            filter.add_events(er.events)
+            filter.apply_filter(citylist)
+            events_filtered = filter.return_events()
+            print('Done. Extracted',len(er.events_filtered),'events')                    
             # write to file
-            outevents = [event.return_dict() for event in er.events]
+            outevents = [event.return_dict() for event in events_filtered]
             with open(self.out_eventdir().path + '/' + str(window_head).replace('-','') + '.events','w',encoding='utf-8') as file_out:
                 json.dump(outevents,file_out)
 
