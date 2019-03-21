@@ -59,6 +59,8 @@ class GetEntityTimeseriesTask(Task):
 
         timeseries = defaultdict(list)
         dateseries = []
+        first_date_datetime = datetime.date(int(self.first_date[:4]),int(self.first_date[4:6]),int(self.first_date[6:8]))
+        last_date_datetime = datetime.date(int(self.last_date[:4]),int(self.last_date[4:6]),int(self.last_date[6:8]))
 
         # read in events
         print('Reading in events')
@@ -73,36 +75,42 @@ class GetEntityTimeseriesTask(Task):
         # go through all tweet dirs
         tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
         for tweetsubdir in tweetsubdirs:
-            print(tweetsubdir)
-            # go through all tweet files
-            tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
-            date_tweets = defaultdict(list)
-            print('Reading in tweets')
-            for tweetfile in tweetfiles:
-                print(tweetfile)
-                # read in tweets
-                with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
-                    tweetdicts = json.loads(file_in.read())
-                for td in tweetdicts:
-                    tweetobj = tweet.Tweet()
-                    tweetobj.import_tweetdict(td)
-                    date_tweets[tweetobj.datetime.date()].append(tweetobj)
-            # make counts by date
-            dates = date_tweets.keys()
-            dates_sorted = sorted(dates)
-            print('Counting terms')
-            for date in dates_sorted:
-                dateseries.append(date)
-                print(date)
-                ts = term_seeker.TermSeeker()
-                ts.set_tweets(date_tweets[date])
-                ts.query_terms(unique_entities)
-                # integreate in timeseries
-                for term in timeseries.keys():
-                    timeseries[term].append(ts.term_counts[term])
-                # # write to file
-                # with open(self.out_entity_counts().path + '/' + date.year + date.month + date.day + '.counts.json','w',encoding='utf-8') as file_out:
-                #     json.dump(ts.term_counts,file_out)
+            tweetsubdir_datestr = tweetsubdir.split('/')[-1]
+            tweetsubdir_date = datetime.date(int(tweetsubdir_datestr[:4]),int(tweetsubdir_datestr[4:]),1)
+            if tweetsubdir_date < first_date_datetime or tweetsubdir_date > last_date_datetime:
+                continue
+            else:
+                print(tweetsubdir)
+                # go through all tweet files
+                tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
+                date_tweets = defaultdict(list)
+                print('Reading in tweets')
+                for tweetfile in tweetfiles:
+                    if tweetfile.split('/')[-1].split('.')[0].split('-')[0]
+                    print(tweetfile)
+                    # read in tweets
+                    with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
+                        tweetdicts = json.loads(file_in.read())
+                    for td in tweetdicts:
+                        tweetobj = tweet.Tweet()
+                        tweetobj.import_tweetdict(td)
+                        date_tweets[tweetobj.datetime.date()].append(tweetobj)
+                # make counts by date
+                dates = date_tweets.keys()
+                dates_sorted = sorted(dates)
+                print('Counting terms')
+                for date in dates_sorted:
+                    dateseries.append(date)
+                    print(date)
+                    ts = term_seeker.TermSeeker()
+                    ts.set_tweets(date_tweets[date])
+                    ts.query_terms(unique_entities)
+                    # integreate in timeseries
+                    for term in timeseries.keys():
+                        timeseries[term].append(ts.term_counts[term])
+                    # # write to file
+                    # with open(self.out_entity_counts().path + '/' + date.year + date.month + date.day + '.counts.json','w',encoding='utf-8') as file_out:
+                    #     json.dump(ts.term_counts,file_out)
 
         print('Done. Writing to files')
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
