@@ -148,7 +148,7 @@ class ExtractEventsSliderTask(Task):
             filter.add_events(er.events)
             filter.apply_filter(citylist)
             events_filtered = filter.return_events()
-            print('Done. Extracted',len(er.events_filtered),'events')                    
+            print('Done. Extracted',len(events_filtered),'events')                    
             # write to file
             outevents = [event.return_dict() for event in events_filtered]
             with open(self.out_eventdir().path + '/' + str(window_head).replace('-','') + '.events','w',encoding='utf-8') as file_out:

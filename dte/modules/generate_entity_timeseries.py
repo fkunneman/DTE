@@ -8,59 +8,49 @@ import re
 import datetime 
 from collections import defaultdict
 
-from dte.functions import term_seeker
-from dte.classes import tweet
-
 ################################################################################
 ###Timeseries generator
 ################################################################################
 
 @registercomponent
-class GetEntityTimeseries(WorkflowComponent):
+class GetEntityTimeseriesMonth(WorkflowComponent):
 
     tweetdir = Parameter()
     events = Parameter()
 
-    first_date = Parameter()
-    last_date = Parameter()
+    month = Parameter()
     
     def accepts(self):
         return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        timeseries_generator = workflow.new_task('get_entity_timeseries', GetEntityTimeseriesTask, autopass=True, first_date = self.first_date, last_date=self.last_date)
+        timeseries_generator = workflow.new_task('get_entity_timeseries', GetEntityTimeseriesTask, autopass=True, month=self.month)
         timeseries_generator.in_tweetdir = input_feeds['tweetdir']
         timeseries_generator.in_events = input_feeds['events']
 
         return timeseries_generator
-
+    
 class GetEntityTimeseriesTask(Task):
 
     in_tweetdir = InputSlot()
     in_events = InputSlot()
-
-    first_date = Parameter()
-    last_date = Parameter()
+    
+    month = Parameter()
 
     def out_entity_counts(self):
-        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.' + self.last_date + '.counts')
+        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts')
 
     def out_vocabulary(self):
-        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.' + self.last_date + '.counts_vocabulary')
+        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts_vocabulary')
 
     def out_dateseries(self):
-        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.' + self.last_date + '.counts_dates')
+        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts_dates')
 
     def run(self):
 
-        # make counts directory
-        # self.setup_output_dir(self.out_entity_counts().path)
-
         timeseries = defaultdict(list)
         dateseries = []
-        first_date_datetime = datetime.date(int(self.first_date[:4]),int(self.first_date[4:6]),int(self.first_date[6:8]))
-        last_date_datetime = datetime.date(int(self.last_date[:4]),int(self.last_date[4:6]),int(self.last_date[6:8]))
 
         # read in events
         print('Reading in events')
@@ -71,47 +61,38 @@ class GetEntityTimeseriesTask(Task):
         for ed in eventdicts:
             entities.extend(ed['entities'])
         unique_entities = list(set(entities))
-
-        # go through all tweet dirs
-        tweetsubdirs = [ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ]
-        for tweetsubdir in tweetsubdirs:
-            tweetsubdir_datestr = tweetsubdir.split('/')[-1]
-            tweetsubdir_date = datetime.date(int(tweetsubdir_datestr[:4]),int(tweetsubdir_datestr[4:]),1)
-            if tweetsubdir_date < first_date_datetime or tweetsubdir_date > last_date_datetime:
-                continue
-            else:
-                print(tweetsubdir)
-                # go through all tweet files
-                tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
-                date_tweets = defaultdict(list)
-                print('Reading in tweets')
-                for tweetfile in tweetfiles:
-                    if tweetfile.split('/')[-1].split('.')[0].split('-')[0]
-                    print(tweetfile)
-                    # read in tweets
-                    with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
-                        tweetdicts = json.loads(file_in.read())
-                    for td in tweetdicts:
-                        tweetobj = tweet.Tweet()
-                        tweetobj.import_tweetdict(td)
-                        date_tweets[tweetobj.datetime.date()].append(tweetobj)
-                # make counts by date
-                dates = date_tweets.keys()
-                dates_sorted = sorted(dates)
-                print('Counting terms')
-                for date in dates_sorted:
-                    dateseries.append(date)
-                    print(date)
-                    ts = term_seeker.TermSeeker()
-                    ts.set_tweets(date_tweets[date])
-                    ts.query_terms(unique_entities)
-                    # integreate in timeseries
-                    for term in timeseries.keys():
-                        timeseries[term].append(ts.term_counts[term])
-                    # # write to file
-                    # with open(self.out_entity_counts().path + '/' + date.year + date.month + date.day + '.counts.json','w',encoding='utf-8') as file_out:
-                    #     json.dump(ts.term_counts,file_out)
-
+        eventdicts = None # to save memory
+        tweetsubdir = self.in_tweetdir().path + '/' + self.month
+        # go through all tweet files
+        tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
+        cursordate = False
+        date_entities = []
+        print('Reading in tweets')
+        for tweetfile in tweetfiles:
+            print(tweetfile)
+            tweetfile_datestr = tweetfile.split('/')[-1].split('.')[0].split('-')[0]
+            filedate = datetime.date(int(tweetfile_datestr[:4]),int(tweetfile_datestr[4:6]),int(tweetfile_datestr[6:8]))
+            if not cursordate:
+                cursordate = filedate
+            if filedate > cursordate:
+                dateseries.append(''.join(str(cursordate).split('-')))
+                print(cursordate)
+                # integrate in timeseries
+                for term in unique_entities:
+                    timeseries[term].append(date_entities.count(term))
+                cursordate = filedate
+                date_entities = []
+            # read in tweets
+            with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
+                tweetdicts = json.loads(file_in.read())
+            for td in tweetdicts:
+                date_entities.extend(list(td['entities'].keys()))
+        dateseries.append(''.join(str(cursordate).split('-')))
+        print(cursordate)
+        # integrate in timeseries
+        for term in unique_entities:
+            timeseries[term].append(date_entities.count(term))
+                
         print('Done. Writing to files')
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(unique_entities))
@@ -122,7 +103,7 @@ class GetEntityTimeseriesTask(Task):
         timeseries_out = []
         for entity in unique_entities:
             timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
-        with open(self.out_entity_counts,'w') as out:
+        with open(self.out_entity_counts().path,'w') as out:
             out.write('\n'.join(timeseries_out))
 
 ################################################################################
@@ -138,7 +119,7 @@ class CountEntities(WorkflowComponent):
     date = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.entity_counts',inputparameter='entity_counts') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts',inputparameter='entity_counts') ) ]
 
     def setup(self, workflow, input_feeds):
 
