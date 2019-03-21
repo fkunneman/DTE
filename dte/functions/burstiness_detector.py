@@ -34,6 +34,27 @@ class BurstinessDetector:
     def calculate_burstiness(self):
         # for each entity
         for entity in self.entity_counts.keys():
+            print(self.entity_counts[entity])
+            quit()
+            if sum(self.entity_counts(entity)) > 10:
+                burstiness_scores = []
+            # calculate avg frequency
+            avg_frequency = self.calculate_average_frequency(self.entity_counts[entity])
+            # for each date at which the entity represents an event
+            for date in self.entity_dates[entity]:
+                # calculate burstiness at this date
+                try:
+                    burstiness_scores.append([self.entity_datecount[entity][date],self.calculate_date_burstiness(avg_frequency,self.entity_datecount[entity][date])])
+                except: # not frequencies available for date
+                    continue
+            # summarize burstiness
+            if len(burstiness_scores) > 0:
+                summary = self.summarize_burstiness([bs[1] for bs in burstiness_scores])
+                self.entity_burstiness.append([entity,burstiness_scores,avg_frequency,summary[0],summary[1]])
+
+    def calculate_burstiness(self):
+        # for each entity
+        for entity in self.entity_counts.keys():
             burstiness_scores = []
             # calculate avg frequency
             avg_frequency = self.calculate_average_frequency(self.entity_counts[entity])

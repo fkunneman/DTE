@@ -1,5 +1,5 @@
 
-from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot
+from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, registercomponent, InputSlot, BoolParameter
 
 import gzip
 import io
@@ -13,6 +13,8 @@ class FilterTweetsTask(Task):
 
     in_tweets = InputSlot() #input slot for a gzipped tweet file
 
+    format_json = BoolParameter()
+
     def out_filtered(self):
         return self.outputfrominput(inputformat='tweets', stripextension='.gz', addextension='.filtered.json')
 
@@ -21,10 +23,16 @@ class FilterTweetsTask(Task):
         good_format = re.compile(r'}$')
         tweets = []
         for line in io.TextIOWrapper(io.BufferedReader(gzip.open(self.in_tweets().path)), encoding='utf-8', errors='ignore'):
-            try:
-                tweets.append(json.loads(line.strip()))
-            except:
-                print('Error loading json, skipping to next line')
+            if self.format_json:
+                try:
+                    tweets.append(json.loads(line.strip()))
+                except:
+                    print('Error loading json, skipping to next line')
+            else:
+                try:
+                    tweets.append(line.strip())
+                except:
+                    print('Error loading json, skipping to next line')
         print(self.in_tweets().path,'contains',len(tweets),'before filtering')
         tf = tweetfilter.Tweetfilter(tweets)
         tf.discard_retweets()
@@ -44,6 +52,8 @@ class FilterTweetsTask(Task):
 
 @registercomponent
 class FilterTweets(StandardWorkflowComponent):
+
+    format_json = BoolParameter()
 
     def autosetup(self):
         return FilterTweetsTask
