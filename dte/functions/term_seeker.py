@@ -15,8 +15,10 @@ class TermSeeker:
         qs = set(terms)
         for tweet in self.tweets:
             m = list(qs & set(tweet.entities))
-            if len(m) > 0:
-                for term in m:
-                    self.term_counts[term] += 1
-                    self.term_tweets[term].append(tweet)
+            for term in m:
+                self.term_counts[term] += 1
+            r = qs - set(m)
+            for term in r:
+                self.term_counts[term] = 0 
+#                    self.term_tweets[term].append(tweet)
 
