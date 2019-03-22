@@ -119,15 +119,75 @@ class GetEntityTimeseriesTask(Task):
             timeseries_out.append(timeseries[term])
         timeseries_csr = sparse.csr_matrix(timeseries_out)
         numpy.savez(self.out_entity_counts().path, data=timeseries_csr.data, indices=timeseries_csr.indices, indptr=timeseries_csr.indptr, shape=timeseries_csr.shape)        
-        
-        # for entity in unique_entities:
-        #     timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
-        # with gzip.open(self.out_entity_counts().path,'wb') as out:
-        #     out.write('\n'.join(timeseries_out).encode('utf-8'))
+
+################################################################################
+### Timeseries combiner
+################################################################################
+
+@registercomponent
+class CombineEntityTimeseries(WorkflowComponent):
+
+    entity_counts_dir = Parameter()
+    
+    def accepts(self):
+        return [ ( InputFormat(self,format_id='entity_counts_dir',extension='.timeseries',inputparameter='entity_counts_dir') ) ]
+
+    def setup(self, workflow, input_feeds):
+
+        timeseries_combiner = workflow.new_task('combine_entity_timeseries', CombineEntityTimeseriesTask, autopass=True)
+        timeseries_combiner.in_entity_counts_dir = input_feeds['entity_counts_dir']
+
+        return timeseries_combiner
+
+class CombineEntityTimeseriesTask(Task):
+
+    in_entity_counts_dir = InputSlot()
+
+    def out_combined_counts(self):
+        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.timeseries', addextension='.timeseries/combined.counts.npz')
+
+    def out_combined_vocabulary(self):
+        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.timeseries', addextension='.timeseries/combined.counts_vocabulary')
+
+    def out_combined_dateseries(self):
+        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.timeseries', addextension='.timeseries/combined.counts_dates')
+
+    def run(self):
+
+        # read entity counts
+        print('Reading countfiles')
+        countfiles = sorted([countfile for countfile in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts.npz')])
+        vocabularies = sorted([vocabulary for vocabulary in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_vocabulary')])
+        datefiles = sorted([datesequence for datesequence in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_dates')])
+        print(len(countfiles),'Countfiles and',len(vocabularies),'Vocabulary files and',len(datefiles),'datefiles')
+        dates = []
+        counts = []
+        for j,countfile in enumerate(countfiles[:2]):
+            print(countfile)
+            with open(datefiles[j],'r',encoding='utf-8') as file_in:
+                dates.extend(file_in.read().strip().split('\n'))
+            loader = numpy.load(countfile)
+            counts.append(sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']))
+        with open(vocabularies[j],'r',encoding='utf-8') as file_in:
+            vocabulary = file_in.read().strip().split('\n')
+        print('Done. Vocabulary size:',len(vocabulary),'Num dates:',len(dates),'Shape first counts:',counts[0].shape)
+
+        # combine counts
+        print('Combining counts')
+        counts_combined = sparse.hstack(counts)
+
+        # write to files
+        print('Writing to files')
+        with open(self.out_combined_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(vocabulary))
+        with open(self.out_combined_dateseries().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(dates))
+        numpy.savez(self.out_combined_counts().path, data=counts_combined.data, indices=counts_combined.indices, indptr=counts_combined.indptr, shape=counts_combined.shape)        
 
 ################################################################################
 ###Timeseries complementer
 ################################################################################
+
 @registercomponent
 class CountEntitiesDay(WorkflowComponent):
 
@@ -141,11 +201,11 @@ class CountEntitiesDay(WorkflowComponent):
     current_date = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events.merged',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts.gzip',inputparameter='entity_counts'), InputFormat(self,format_id='entity_vocabulary',extension='.counts_vocabulary',inputparameter='entity_vocabulary'), InputFormat(self,format_id='entity_dates',extension='.counts_dates',inputparameter='entity_dates') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events.merged',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts.npz',inputparameter='entity_counts'), InputFormat(self,format_id='entity_vocabulary',extension='.counts_vocabulary',inputparameter='entity_vocabulary'), InputFormat(self,format_id='entity_dates',extension='.counts_dates',inputparameter='entity_dates') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        entity_counter = workflow.new_task('count_entities', CountEntitiesTask, autopass=False, previous_date=self.previous_date, current_date=self.current_date)
+        entity_counter = workflow.new_task('count_entities', CountEntitiesDayTask, autopass=False, previous_date=self.previous_date, current_date=self.current_date)
         entity_counter.in_tweetdir = input_feeds['tweetdir']
         entity_counter.in_events = input_feeds['events']
         entity_counter.in_entity_counts = input_feeds['entity_counts']
@@ -154,7 +214,7 @@ class CountEntitiesDay(WorkflowComponent):
 
         return entity_counter
 
-class CountEntitiesTask(Task):
+class CountEntitiesDayTask(Task):
 
     in_tweetdir = InputSlot()
     in_events = InputSlot()
@@ -166,7 +226,7 @@ class CountEntitiesTask(Task):
     current_date = Parameter()
 
     def out_counts(self):
-        return self.outputfrominput(inputformat='entity_counts', stripextension='.' + self.previous_date + '.counts.gzip', addextension='.' + self.current_date + '.counts.gzip')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.' + self.previous_date + '.counts.npz', addextension='.' + self.current_date + '.counts.npz')
 
     def out_vocabulary(self):
         return self.outputfrominput(inputformat='entity_vocabulary', stripextension='.' + self.previous_date + '.counts_vocabulary', addextension='.' + self.current_date + '.counts_vocabulary')
@@ -192,9 +252,9 @@ class CountEntitiesTask(Task):
         with open(self.in_entity_dates().path,'r',encoding='utf-8') as file_in:
             dates = file_in.read().strip().split('\n')
 
-        # read in gzipped entity_counts
-        for i,line in enumerate(io.TextIOWrapper(io.BufferedReader(gzip.open(self.in_entity_counts().path)), encoding='utf-8')):
-            timeseries[vocabulary[i]] = line.split()
+        # read in entity_counts
+        loader = numpy.load(self.in_entity_counts().path)
+        counts = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']))
 
         print('Setting entities')
         # collect event entities
@@ -204,8 +264,7 @@ class CountEntitiesTask(Task):
         unique_entities = list(set(entities) - set(vocabulary))
         if len(unique_entities) > 0:
             print('New entities:',' '.join(unique_entities).encode('utf-8'))
-        vocabulary.extend(unique_entities)
-        set_vocabulary = set(vocabulary)
+        set_vocabulary = set(vocabulary + unique_entities)
 
         # select tweetfiles of date
         tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + self.current_date[:4] + self.current_date[4:6] + '/*') if re.search(self.current_date,tweetfile)]
@@ -225,24 +284,33 @@ class CountEntitiesTask(Task):
 
         # append counts to timeseries
         print('Saving counts')
-        term_zero = set(vocabulary) - set(date_entities_list)
+        term_zero = set(vocabulary + unique_entities) - set(date_entities_list)
         for term in term_zero:
             timeseries[term].append(0)
         for term in list(set(date_entities_list)):
             timeseries[term].append(date_entities[term])
 
         # append date to dateseries
-        dates.append(self.current_date)
+        dates.append(self.current_date)        
 
         print('Done. Writing to files')
+        timeseries_out_traditional = []
+        timeseries_out_new = []
+        for term in vocabulary:
+            timeseries_out_traditional.append([timeseries[term]])
+        timeseries_out_traditional_csr = sparse.csr_matrix(timeseries_out_traditional)
+        print('Shape original counts:',counts.shape,'Shape new column:',timeseries_out_traditional_csr.shape)
+        new_counts = sparse.hstack(counts,timeseries_out_csr)
+        print('Vocabulary length before',len(vocabulary))
+        for term in unique_entities:
+            vocabulary.append(term)
+            timeseries_out_new.append(([0] * counts.shape[1]) + [timeseries[term]])
+        print('Vocabulary length after',len(vocabulary))
+        timeseries_out_new_csr = sparse.csr_matrix(timeseries_out_new)
+        final_counts = sparse.vstack(new_counts,timeseries_out_new_csr)
+        print('Shape original counts:',counts.shape,'Shape new rows:',timeseries_out_new_csr.shape,'Shape final counts:',final_counts.shape)
+        numpy.savez(self.out_counts().path, data=final_counts.data, indices=final_counts.indices, indptr=final_counts.indptr, shape=final_counts.shape)        
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(vocabulary))
-
         with open(self.out_dates().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(dates))
-
-        timeseries_out = []
-        for entity in vocabulary:
-            timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
-        with gzip.open(self.out_counts().path,'wb') as out:
-            out.write('\n'.join(timeseries_out).encode('utf-8'))
