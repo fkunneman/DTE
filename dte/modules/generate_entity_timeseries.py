@@ -131,11 +131,11 @@ class CountEntitiesDay(WorkflowComponent):
     entity_vocabulary = Parameter()
     entity_dates = Parameter()
 
-    previous_date = Paremeter()
+    previous_date = Parameter()
     current_date = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts.gzip',inputparameter='entity_counts'), InputFormat(self,format_id='entity_vocabulary',extension='.counts_vocabulary',inputparameter='entity_vocabulary'), InputFormat(self,format_id='entity_dates',extension='.counts_dates',inputparameter='entity_dates') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events.merged',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts.gzip',inputparameter='entity_counts'), InputFormat(self,format_id='entity_vocabulary',extension='.counts_vocabulary',inputparameter='entity_vocabulary'), InputFormat(self,format_id='entity_dates',extension='.counts_dates',inputparameter='entity_dates') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -199,25 +199,26 @@ class CountEntitiesTask(Task):
         if len(unique_entities) > 0:
             print('New entities:',' '.join(unique_entities).encode('utf-8'))
         vocabulary.extend(unique_entities)
+        set_vocabulary = set(vocabulary)
 
         # select tweetfiles of date
-        tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + self.date[:4] + self.date[4:6] + '/*') if re.search(self.date,tweetfile)]
+        tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + self.current_date[:4] + self.current_date[4:6] + '/*') if re.search(self.current_date,tweetfile)]
         # go through all tweet files
         print('Reading in tweets')
-        date_entities = defaultdict(list)
+        date_entities = defaultdict(int)
         date_entities_list = []
         for tweetfile in tweetfiles:
+            print(tweetfile)
             # read in tweets
             with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
                 tweetdicts = json.loads(file_in.read())
             for td in tweetdicts:
-                for term in (set(vocabulary) & set(list(td['entities'].keys()))):
+                for term in (set_vocabulary & set(list(td['entities'].keys()))):
                     date_entities[term] += 1
                     date_entities_list.append(term)
 
         # append counts to timeseries
         print('Saving counts')
-        print(cursordate)
         term_zero = set(vocabulary) - set(date_entities_list)
         for term in term_zero:
             timeseries[term].append(0)
@@ -238,4 +239,4 @@ class CountEntitiesTask(Task):
         for entity in vocabulary:
             timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
         with gzip.open(self.out_counts().path,'wb') as out:
-            out.write('\n'.join(timeseries_out))
+            out.write('\n'.join(timeseries_out).encode('utf-8'))

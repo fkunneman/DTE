@@ -56,6 +56,7 @@ class ExtractDateref(StandardWorkflowComponent):
     config = Parameter(default=False)
     strip_punctuation = BoolParameter()
     to_lowercase = BoolParameter()
+    format_json = BoolParameter()
 
     def accepts(self):
         return (

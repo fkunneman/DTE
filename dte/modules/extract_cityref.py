@@ -62,6 +62,7 @@ class ExtractCityref(StandardWorkflowComponent):
     skip_month = BoolParameter()
     skip_timeunit = BoolParameter()
     skip_day = BoolParameter()
+    format_json = BoolParameter()
 
     def accepts(self):
         return (

@@ -74,6 +74,7 @@ class ExtractEntities(StandardWorkflowComponent):
     skip_timeunit = BoolParameter()
     skip_day = BoolParameter()
     citylist = Parameter()
+    format_json = BoolParameter()
 
     def accepts(self):
         return (

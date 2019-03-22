@@ -50,11 +50,12 @@ class Tokenize(StandardWorkflowComponent):
     config = Parameter()
     strip_punctuation = BoolParameter()
     lowercase = BoolParameter()
+    format_json = BoolParameter()
 
     def accepts(self):
         return (
             InputFormat(self, format_id='filtered', extension='.filtered.json'),
-            InputComponent(self, FilterTweets)
+            InputComponent(self, FilterTweets, format_json=self.format_json)
         )
 
     def autosetup(self):
