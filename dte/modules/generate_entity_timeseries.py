@@ -1,14 +1,14 @@
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
-import gzip
 import json
 import glob
 import os
-import io
 import re
 import datetime 
 from collections import defaultdict
+import numpy
+from scipy import sparse
 
 ################################################################################
 ###Timeseries generator
@@ -41,7 +41,7 @@ class GetEntityTimeseriesTask(Task):
     month = Parameter()
 
     def out_entity_counts(self):
-        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts')
+        return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts.npz')
 
     def out_vocabulary(self):
         return self.outputfrominput(inputformat='tweetdir', stripextension='.tweets', addextension='.timeseries/' + self.month + '.counts_vocabulary')
@@ -103,21 +103,27 @@ class GetEntityTimeseriesTask(Task):
         term_zero = unique_entities - set(date_entities_list)
         for term in term_zero:
             timeseries[term].append(0)
-            for term in list(set(date_entities_list)):
-                timeseries[term].append(date_entities[term])
+        for term in list(set(date_entities_list)):
+            timeseries[term].append(date_entities[term])
                 
         print('Done. Writing to files')
+        vocabulary = sorted(list(unique_entities))
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
-            out.write('\n'.join(unique_entities))
+            out.write('\n'.join(vocabulary))
 
         with open(self.out_dateseries().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(dateseries))
 
         timeseries_out = []
-        for entity in unique_entities:
-            timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
-        with open(self.out_entity_counts().path,'w') as out:
-            out.write('\n'.join(timeseries_out))
+        for term in vocabulary:
+            timeseries_out.append(timeseries[term])
+        timeseries_csr = sparse.csr_matrix(timeseries_out)
+        numpy.savez(self.out_entity_counts().path, data=timeseries_csr.data, indices=timeseries_csr.indices, indptr=timeseries_csr.indptr, shape=timeseries_csr.shape)        
+        
+        # for entity in unique_entities:
+        #     timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
+        # with gzip.open(self.out_entity_counts().path,'wb') as out:
+        #     out.write('\n'.join(timeseries_out).encode('utf-8'))
 
 ################################################################################
 ###Timeseries complementer

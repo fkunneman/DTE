@@ -1,6 +1,8 @@
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
+import gzip
+import io
 import json
 import glob
 import os
@@ -11,7 +13,6 @@ import numpy
 
 from dte.functions import burstiness_detector
 from dte.classes import event
-
 
 ################################################################################
 ###Periodicity detector
@@ -55,24 +56,28 @@ class AssessBurstinessTask(Task):
 
         # read in entity counts
         print('Reading countfiles')
-        countfiles = sorted([countfile for countfile in glob.glob('lamaevents.timeseries/20*' + 'counts.gz')])
-        vocabularies = sorted([vocabulary for vocabulary in glob.glob('lamaevents.timeseries/20*' + 'counts_vocabulary')])
-        dates = sorted([datesequence for datesequence in glob.glob('lamaevents.timeseries/20*' + 'counts_dates')])
-        print(len(countfiles),'Countfiles and',len(vocabularies),'Vocabulary files and',len(dates),'datefiles')
+        countfiles = sorted([countfile for countfile in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts.gz')])
+        vocabularies = sorted([vocabulary for vocabulary in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_vocabulary')])
+        datefiles = sorted([datesequence for datesequence in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_dates')])
+        print(len(countfiles),'Countfiles and',len(vocabularies),'Vocabulary files and',len(datefiles),'datefiles')
         counts = defaultdict(list)
         dates = []
-        for j,countfile in enumerate(countfiles):
-            with open(dates[j],'r',encoding='utf-8') as file_in:
+        for j,countfile in enumerate(countfiles[:2]):
+            print(countfile)
+            with open(datefiles[j],'r',encoding='utf-8') as file_in:
                 dates.extend(file_in.read().strip().split('\n'))
             with open(vocabularies[j],'r',encoding='utf-8') as file_in:
                 vocabulary = file_in.read().strip().split('\n')
             for i,line in enumerate(io.TextIOWrapper(io.BufferedReader(gzip.open(countfile)), encoding='utf-8')):
                 counts[vocabulary[i]].extend(line.split())
+        print('Done. Counts per term:',len(counts[vocabulary[i]]))
         counts_matrix = []
         matrix_vocabulary = []
-        for k,v in counts.items()
+        for k,v in counts.items():
+            print(k.encode('utf-8'))
             matrix_vocabulary.append(k)
             counts_matrix.append(v)
+        print(len(counts_matrix),len(counts_matrix[0]),len(counts_matrix[-1]),type(counts_matrix[0][0]))
         counts_csr = sparse.csr_matrix(counts_matrix)
         print('Counts shape:',counts_csr.shape)
 
