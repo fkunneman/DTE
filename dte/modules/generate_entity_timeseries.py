@@ -60,13 +60,14 @@ class GetEntityTimeseriesTask(Task):
         entities = []
         for ed in eventdicts:
             entities.extend(ed['entities'])
-        unique_entities = list(set(entities))
+        unique_entities = set(entities)
         eventdicts = None # to save memory
         tweetsubdir = self.in_tweetdir().path + '/' + self.month
         # go through all tweet files
         tweetfiles = [ tweetfile for tweetfile in glob.glob(tweetsubdir + '/*.entity.json') ]
         cursordate = False
-        date_entities = []
+        date_entities = defaultdict(int)
+        date_entities_list = []
         print('Reading in tweets')
         for tweetfile in tweetfiles:
             print(tweetfile)
@@ -76,22 +77,32 @@ class GetEntityTimeseriesTask(Task):
                 cursordate = filedate
             if filedate > cursordate:
                 dateseries.append(''.join(str(cursordate).split('-')))
-                print(cursordate)
                 # integrate in timeseries
-                for term in unique_entities:
-                    timeseries[term].append(date_entities.count(term))
+                print(cursordate)
+                term_zero = unique_entities - set(date_entities_list)
+                for term in term_zero:
+                    timeseries[term].append(0)
+                for term in list(set(date_entities_list)):
+                    timeseries[term].append(date_entities[term])
                 cursordate = filedate
-                date_entities = []
+                date_entities = defaultdict(int)
+                date_entities_list = []
             # read in tweets
             with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
                 tweetdicts = json.loads(file_in.read())
             for td in tweetdicts:
-                date_entities.extend(list(td['entities'].keys()))
+                for term in (unique_entities & set(list(td['entities'].keys()))):
+                    date_entities[term] += 1
+                    date_entities_list.append(term)
+                                                   
         dateseries.append(''.join(str(cursordate).split('-')))
-        print(cursordate)
         # integrate in timeseries
-        for term in unique_entities:
-            timeseries[term].append(date_entities.count(term))
+        print(cursordate)
+        term_zero = unique_entities - set(date_entities_list)
+        for term in term_zero:
+            timeseries[term].append(0)
+            for term in list(set(date_entities_list)):
+                timeseries[term].append(date_entities[term])
                 
         print('Done. Writing to files')
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
