@@ -1,9 +1,11 @@
 
 from luiginlp.engine import Task, StandardWorkflowComponent, WorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, IntParameter, BoolParameter
 
+import gzip
 import json
 import glob
 import os
+import io
 import re
 import datetime 
 from collections import defaultdict
@@ -121,23 +123,28 @@ class GetEntityTimeseriesTask(Task):
 ###Timeseries complementer
 ################################################################################
 @registercomponent
-class CountEntities(WorkflowComponent):
+class CountEntitiesDay(WorkflowComponent):
 
     tweetdir = Parameter()
     events = Parameter()
     entity_counts = Parameter()
+    entity_vocabulary = Parameter()
+    entity_dates = Parameter()
 
-    date = Parameter()
+    previous_date = Paremeter()
+    current_date = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts',inputparameter='entity_counts') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_counts',extension='.counts.gzip',inputparameter='entity_counts'), InputFormat(self,format_id='entity_vocabulary',extension='.counts_vocabulary',inputparameter='entity_vocabulary'), InputFormat(self,format_id='entity_dates',extension='.counts_dates',inputparameter='entity_dates') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        entity_counter = workflow.new_task('count_entities', CountEntitiesTask, autopass=False, date=self.date)
+        entity_counter = workflow.new_task('count_entities', CountEntitiesTask, autopass=False, previous_date=self.previous_date, current_date=self.current_date)
         entity_counter.in_tweetdir = input_feeds['tweetdir']
         entity_counter.in_events = input_feeds['events']
         entity_counter.in_entity_counts = input_feeds['entity_counts']
+        entity_counter.in_entity_vocabulary = input_feeds['entity_vocabulary']
+        entity_counter.in_entity_dates = input_feeds['entity_dates']
 
         return entity_counter
 
@@ -146,47 +153,89 @@ class CountEntitiesTask(Task):
     in_tweetdir = InputSlot()
     in_events = InputSlot()
     in_entity_counts = InputSlot()
+    in_entity_vocabulary = InputSlot()
+    in_entity_dates = InputSlot()
 
-    date = Parameter()
+    previous_date = Parameter()
+    current_date = Parameter()
 
     def out_counts(self):
-        return self.outputfrominput(inputformat='entity_counts', stripextension='.entity_counts', addextension='.entity_counts/' + self.date + '.counts.json')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.' + self.previous_date + '.counts.gzip', addextension='.' + self.current_date + '.counts.gzip')
+
+    def out_vocabulary(self):
+        return self.outputfrominput(inputformat='entity_vocabulary', stripextension='.' + self.previous_date + '.counts_vocabulary', addextension='.' + self.current_date + '.counts_vocabulary')
+
+    def out_dates(self):
+        return self.outputfrominput(inputformat='entity_dates', stripextension='.' + self.previous_date + '.counts_dates', addextension='.' + self.current_date + '.counts_dates')
 
     def run(self):
 
-        #date_formatted = datetime.date(int(self.date[:4]),int(self.date[4:6]),int(self.date[6:]))
+        timeseries = defaultdict(list)
 
-        # read in events
-        print('Reading in events')
+        # read files
+        print('Loading data')
+        # read events
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
+        
+        # read vocabulary
+        with open(self.in_entity_vocabulary().path,'r',encoding='utf-8') as file_in:
+            vocabulary = file_in.read().strip().split('\n')
+
+        # read datesequence
+        with open(self.in_entity_dates().path,'r',encoding='utf-8') as file_in:
+            dates = file_in.read().strip().split('\n')
+
+        # read in gzipped entity_counts
+        for i,line in enumerate(io.TextIOWrapper(io.BufferedReader(gzip.open(self.in_entity_counts().path)), encoding='utf-8')):
+            timeseries[vocabulary[i]] = line.split()
+
+        print('Setting entities')
         # collect event entities
         entities = []
         for ed in eventdicts:
             entities.extend(ed['entities'])
-        unique_entities = list(set(entities))
+        unique_entities = list(set(entities) - set(vocabulary))
+        if len(unique_entities) > 0:
+            print('New entities:',' '.join(unique_entities).encode('utf-8'))
+        vocabulary.extend(unique_entities)
 
         # select tweetfiles of date
         tweetfiles = [tweetfile for tweetfile in glob.glob(self.in_tweetdir().path + '/' + self.date[:4] + self.date[4:6] + '/*') if re.search(self.date,tweetfile)]
         # go through all tweet files
         print('Reading in tweets')
-        tweets = []
+        date_entities = defaultdict(list)
+        date_entities_list = []
         for tweetfile in tweetfiles:
             # read in tweets
             with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
                 tweetdicts = json.loads(file_in.read())
             for td in tweetdicts:
-                tweetobj = tweet.Tweet()
-                tweetobj.import_tweetdict(td)
-                tweets.append(tweetobj)
+                for term in (set(vocabulary) & set(list(td['entities'].keys()))):
+                    date_entities[term] += 1
+                    date_entities_list.append(term)
 
-        # make counts
-        print('Making counts')
-        ts = term_seeker.TermSeeker()
-        ts.set_tweets(tweets)
-        ts.query_terms(unique_entities)
+        # append counts to timeseries
+        print('Saving counts')
+        print(cursordate)
+        term_zero = set(vocabulary) - set(date_entities_list)
+        for term in term_zero:
+            timeseries[term].append(0)
+        for term in list(set(date_entities_list)):
+            timeseries[term].append(date_entities[term])
 
-        # write to file
-        with open(self.out_counts().path,'w',encoding='utf-8') as file_out:
-            json.dump(ts.term_counts,file_out)
-            
+        # append date to dateseries
+        dates.append(self.current_date)
+
+        print('Done. Writing to files')
+        with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(vocabulary))
+
+        with open(self.out_dates().path,'w',encoding='utf-8') as out:
+            out.write('\n'.join(dates))
+
+        timeseries_out = []
+        for entity in vocabulary:
+            timeseries_out.append(' '.join([str(x) for x in timeseries[entity]]))
+        with gzip.open(self.out_counts().path,'wb') as out:
+            out.write('\n'.join(timeseries_out))
