@@ -21,65 +21,54 @@ from dte.classes import event
 @registercomponent
 class AssessBurstiness(WorkflowComponent):
 
-    entity_counts_dir = Parameter()
+    entity_counts = Parameter()
+    dates = Parameter()
+    vocabulary = Parameter()
     events = Parameter()
 
     burstiness_threshold = Parameter()
     date = Parameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='entity_counts_dir',extension='.timeseries',inputparameter='entity_counts_dir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
+        return [ ( InputFormat(self,format_id='entity_counts',extension='.counts.npz',inputparameter='entity_counts'), InputFormat(self,format_id='dates',extension='.counts_dates',inputparameter='dates'), InputFormat(self,format_id='vocabulary',extension='.counts_vocabulary',inputparameter='vocabulary'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
         burstiness_assessor = workflow.new_task('assess_burstiness', AssessBurstinessTask, autopass=False, burstiness_threshold=self.burstiness_threshold,date=self.date)
-        burstiness_assessor.in_entity_counts_dir = input_feeds['entity_counts_dir']
+        burstiness_assessor.in_entity_counts = input_feeds['entity_counts']
+        burstiness_assessor.in_dates = input_feeds['dates']
+        burstiness_assessor.in_vocabulary = input_feeds['vocabulary']
         burstiness_assessor.in_events = input_feeds['events']
 
         return burstiness_assessor
 
 class AssessBurstinessTask(Task):
 
-    in_entity_counts_dir = InputSlot()
+    in_entity_counts = InputSlot()
+    in_dates = InputSlot()
+    in_vocabulary = InputSlot()
     in_events = InputSlot()
 
     burstiness_threshold = Parameter()
     date = Parameter()
 
     def out_stats(self):
-        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.timeseries', addextension='.burstiness/' + self.date + '.stats.txt')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.counts.npz', addextension=self.date + '.burstiness_stats.txt')
 
     def out_bursty_entities(self):
-        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.timeseries', addextension='.burstiness/' + self.date + '.bursty_entities.txt')
+        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.counts.npz', addextension=self.date + '.burstiness.txt')
 
     def run(self):
 
         # read in entity counts
         print('Reading countfiles')
-        countfiles = sorted([countfile for countfile in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts.gz')])
-        vocabularies = sorted([vocabulary for vocabulary in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_vocabulary')])
-        datefiles = sorted([datesequence for datesequence in glob.glob(self.in_entity_counts_dir().path + '/20*' + 'counts_dates')])
-        print(len(countfiles),'Countfiles and',len(vocabularies),'Vocabulary files and',len(datefiles),'datefiles')
-        counts = defaultdict(list)
-        dates = []
-        for j,countfile in enumerate(countfiles[:2]):
-            print(countfile)
-            with open(datefiles[j],'r',encoding='utf-8') as file_in:
-                dates.extend(file_in.read().strip().split('\n'))
-            with open(vocabularies[j],'r',encoding='utf-8') as file_in:
-                vocabulary = file_in.read().strip().split('\n')
-            for i,line in enumerate(io.TextIOWrapper(io.BufferedReader(gzip.open(countfile)), encoding='utf-8')):
-                counts[vocabulary[i]].extend(line.split())
-        print('Done. Counts per term:',len(counts[vocabulary[i]]))
-        counts_matrix = []
-        matrix_vocabulary = []
-        for k,v in counts.items():
-            print(k.encode('utf-8'))
-            matrix_vocabulary.append(k)
-            counts_matrix.append(v)
-        print(len(counts_matrix),len(counts_matrix[0]),len(counts_matrix[-1]),type(counts_matrix[0][0]))
-        counts_csr = sparse.csr_matrix(counts_matrix)
-        print('Counts shape:',counts_csr.shape)
+        loader = numpy.load(self.in_entity_counts().path)
+        counts = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
+        with open(self.in_vocabulary().path,'r',encoding='utf-8') as file_in:
+            vocabulary = file_in.read().strip().split('\n')
+        with open(self.in_dates().path,'r',encoding='utf-8') as file_in:
+            dates = file_in.read().strip().split('\n')
+        print('Num terms:',len(vocabulary),'Num dates:',len(dates),'Counts shape:',counts_csr.shape)
 
         # read in events
         print('Reading events')
