@@ -162,7 +162,7 @@ class CombineEntityTimeseriesTask(Task):
         print(len(countfiles),'Countfiles and',len(vocabularies),'Vocabulary files and',len(datefiles),'datefiles')
         dates = []
         counts = []
-        for j,countfile in enumerate(countfiles[:2]):
+        for j,countfile in enumerate(countfiles):
             print(countfile)
             with open(datefiles[j],'r',encoding='utf-8') as file_in:
                 dates.extend(file_in.read().strip().split('\n'))
@@ -174,7 +174,8 @@ class CombineEntityTimeseriesTask(Task):
 
         # combine counts
         print('Combining counts')
-        counts_combined = sparse.hstack(counts)
+        counts_combined = sparse.hstack(counts).tocsr()
+        print('COMBINED SHAPE',counts_combined.shape)
 
         # write to files
         print('Writing to files')
@@ -236,7 +237,7 @@ class CountEntitiesDayTask(Task):
 
     def run(self):
 
-        timeseries = defaultdict(list)
+        timeseries = {}
 
         # read files
         print('Loading data')
@@ -254,13 +255,14 @@ class CountEntitiesDayTask(Task):
 
         # read in entity_counts
         loader = numpy.load(self.in_entity_counts().path)
-        counts = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape']))
+        counts = sparse.csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape = loader['shape'])
 
         print('Setting entities')
         # collect event entities
         entities = []
         for ed in eventdicts:
             entities.extend(ed['entities'])
+        print('Vocabulary length before',len(vocabulary))
         unique_entities = list(set(entities) - set(vocabulary))
         if len(unique_entities) > 0:
             print('New entities:',' '.join(unique_entities).encode('utf-8'))
@@ -286,30 +288,32 @@ class CountEntitiesDayTask(Task):
         print('Saving counts')
         term_zero = set(vocabulary + unique_entities) - set(date_entities_list)
         for term in term_zero:
-            timeseries[term].append(0)
+            timeseries[term] = 0
         for term in list(set(date_entities_list)):
-            timeseries[term].append(date_entities[term])
-
+            timeseries[term] = date_entities[term]
+        counts_date = []
+        for term in vocabulary:
+            counts_date.append([timeseries[term]])
+        counts_date_csr = sparse.csr_matrix(counts_date)
+            
         # append date to dateseries
         dates.append(self.current_date)        
 
         print('Done. Writing to files')
-        timeseries_out_traditional = []
+        timeseries_out_traditional = sparse.hstack([counts,counts_date_csr]).tocsr()
         timeseries_out_new = []
-        for term in vocabulary:
-            timeseries_out_traditional.append([timeseries[term]])
-        timeseries_out_traditional_csr = sparse.csr_matrix(timeseries_out_traditional)
-        print('Shape original counts:',counts.shape,'Shape new column:',timeseries_out_traditional_csr.shape)
-        new_counts = sparse.hstack(counts,timeseries_out_csr)
-        print('Vocabulary length before',len(vocabulary))
         for term in unique_entities:
             vocabulary.append(term)
             timeseries_out_new.append(([0] * counts.shape[1]) + [timeseries[term]])
-        print('Vocabulary length after',len(vocabulary))
         timeseries_out_new_csr = sparse.csr_matrix(timeseries_out_new)
-        final_counts = sparse.vstack(new_counts,timeseries_out_new_csr)
-        print('Shape original counts:',counts.shape,'Shape new rows:',timeseries_out_new_csr.shape,'Shape final counts:',final_counts.shape)
-        numpy.savez(self.out_counts().path, data=final_counts.data, indices=final_counts.indices, indptr=final_counts.indptr, shape=final_counts.shape)        
+        counts_combined = sparse.vstack([timeseries_out_traditional,timeseries_out_new_csr])       
+        print('Shape original counts:',counts.shape,'Shape new column:',timeseries_out_traditional.shape,'Shape new rows',counts_combined.shape,'type new rows:',type(counts_combined))
+        # new_counts = sparse.hstack(counts,timeseries_out_csr)
+        print('Vocabulary length after',len(vocabulary))
+        # timeseries_out_new_csr = sparse.csr_matrix(timeseries_out_new)
+        # final_counts = sparse.vstack(new_counts,timeseries_out_new_csr)
+        # print('Shape original counts:',counts.shape,'Shape new rows:',timeseries_out_new_csr.shape,'Shape final counts:',final_counts.shape)
+        numpy.savez(self.out_counts().path, data=counts_combined.data, indices=counts_combined.indices, indptr=counts_combined.indptr, shape=counts_combined.shape)        
         with open(self.out_vocabulary().path,'w',encoding='utf-8') as out:
             out.write('\n'.join(vocabulary))
         with open(self.out_dates().path,'w',encoding='utf-8') as out:

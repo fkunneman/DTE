@@ -27,7 +27,7 @@ class CollectEventTweets(WorkflowComponent):
 
     def setup(self, workflow, input_feeds):
 
-        tweet_collector = workflow.new_task('collect_event_tweets', CollectEventTweetsTask, autopass=False, burstiness_threshold=self.burstiness_threshold)
+        tweet_collector = workflow.new_task('collect_event_tweets', CollectEventTweetsTask, autopass=False)
         tweet_collector.in_tweetdir = input_feeds['tweetdir']
         tweet_collector.in_events = input_feeds['events']
         tweet_collector.in_entity_burstiness = input_feeds['entity_burstiness']
@@ -59,7 +59,7 @@ class CollectEventTweetsTask(Task):
         dates = []
         entities_date = []
         entity_tweets = defaultdict(list)
-        for tweetsubdir in tweetsubdirs:
+        for tweetsubdir in tweetsubdirs[:12]:
             subdirstr = tweetsubdir.split('/')[-1]
             print('SUBDIRSTR',subdirstr)
             new_outfile = self.out_more_tweets().path + '_' + subdirstr + '.json'
@@ -96,14 +96,16 @@ class CollectEventTweetsTask(Task):
         # read in events
         term_events = defaultdict(list)
         print('Reading in events')
+        extended_events =[]
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
             eventdicts = json.loads(file_in.read())
             for ed in eventdicts:
-                if len(list(set_bursty_entities & set(list(ed['entities'].keys())))) > 0:
-                    eventobj = event.Event()
-                    eventobj.import_eventdict(ed)
-                for term in list(set_bursty_entities & set(list(ed['entities'].keys()))):
-                    term_events[term].append(eventobj)
+                eventobj = event.Event()
+                eventobj.import_eventdict(ed)
+                extended_events.append(eventobj)
+                if len(list(set_bursty_entities & set(list(ed['entities'])))) > 0:
+                    for term in list(set_bursty_entities & set(list(ed['entities']))):
+                        term_events[term].append(eventobj)
 
         # for each entity
         print('Adding event tweets by entity')
@@ -113,18 +115,24 @@ class CollectEventTweetsTask(Task):
             if len(term_events[entity]) == 0:
                 continue
             elif len(term_events[entity]) == 1:
-                event = term_events[entity][0]
-                event_date = ''.join(event['datetime'].split()[0].split('-'))
-                event_date_index = dates.index(event_date)
+                ev = term_events[entity][0]
+                event_date = ''.join(str(ev.datetime).split()[0].split('-'))
+                try:
+                    event_date_index = dates.index(event_date)
+                except:
+                    continue
                 first = event_date_index - 100 if (event_date_index - 100) >= 0 else 0
                 last = event_date_index + 100 if (event_date_index + 100) < len(dates) else len(dates)-1
                 tweets = sum(entity_tweetsequence[entity][first:last],[])
-                event.add_tweets(tweets)
+                ev.add_tweets(tweets)
             else:
                 events = term_events[entity]
-                event_dates = [''.join(event['datetime'].split()[0].split('-')) for event in events]
-                event_date_indices = [dates.index(event_date) for event_date in event_dates]
-                for i,event in enumerate(events):
+                event_dates = [''.join(str(ev.datetime).split()[0].split('-')) for ev in events]
+                try:
+                    event_date_indices = [dates.index(event_date) for event_date in event_dates]
+                except:
+                    continue
+                for i,ev in enumerate(events):
                     index = event_date_indices[i]
                     if i == 0:
                         first = index - 100 if (index - 100) >= 0 else 0
@@ -137,7 +145,13 @@ class CollectEventTweetsTask(Task):
                         plus = 100 if event_date_indices[i+1] - index > 199 else ((event_date_indices[i-1] - index) / 2) 
                         last = index + plus
                         tweets = sum(entity_tweetsequence[entity][first:last],[])
-                        event.add_tweets(tweets)
+                        ev.add_tweets(tweets)
+
+        # write to file
+        print('Writing new events')
+        out_extended_events = [ev.return_dict() for ev in extended_events]
+        with open(self.out_more_tweets().path,'w',encoding='utf-8') as file_out:
+            json.dump(out_extended_events,file_out)
 
 
 #########################################

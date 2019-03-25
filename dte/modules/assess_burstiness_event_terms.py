@@ -26,15 +26,14 @@ class AssessBurstiness(WorkflowComponent):
     vocabulary = Parameter()
     events = Parameter()
 
-    burstiness_threshold = Parameter()
-    date = Parameter()
+    burstiness_threshold = IntParameter()
 
     def accepts(self):
         return [ ( InputFormat(self,format_id='entity_counts',extension='.counts.npz',inputparameter='entity_counts'), InputFormat(self,format_id='dates',extension='.counts_dates',inputparameter='dates'), InputFormat(self,format_id='vocabulary',extension='.counts_vocabulary',inputparameter='vocabulary'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        burstiness_assessor = workflow.new_task('assess_burstiness', AssessBurstinessTask, autopass=False, burstiness_threshold=self.burstiness_threshold,date=self.date)
+        burstiness_assessor = workflow.new_task('assess_burstiness', AssessBurstinessTask, autopass=False, burstiness_threshold=self.burstiness_threshold)
         burstiness_assessor.in_entity_counts = input_feeds['entity_counts']
         burstiness_assessor.in_dates = input_feeds['dates']
         burstiness_assessor.in_vocabulary = input_feeds['vocabulary']
@@ -50,13 +49,12 @@ class AssessBurstinessTask(Task):
     in_events = InputSlot()
 
     burstiness_threshold = Parameter()
-    date = Parameter()
 
     def out_stats(self):
-        return self.outputfrominput(inputformat='entity_counts', stripextension='.counts.npz', addextension=self.date + '.burstiness_stats.txt')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.counts.npz', addextension='.burstiness_stats.txt')
 
     def out_bursty_entities(self):
-        return self.outputfrominput(inputformat='entity_counts_dir', stripextension='.counts.npz', addextension=self.date + '.burstiness.txt')
+        return self.outputfrominput(inputformat='entity_counts', stripextension='.counts.npz', addextension='.burstiness.txt')
 
     def run(self):
 
@@ -68,7 +66,7 @@ class AssessBurstinessTask(Task):
             vocabulary = file_in.read().strip().split('\n')
         with open(self.in_dates().path,'r',encoding='utf-8') as file_in:
             dates = file_in.read().strip().split('\n')
-        print('Num terms:',len(vocabulary),'Num dates:',len(dates),'Counts shape:',counts_csr.shape)
+        print('Num terms:',len(vocabulary),'Num dates:',len(dates),'Counts shape:',counts.shape)
 
         # read in events
         print('Reading events')
@@ -85,27 +83,30 @@ class AssessBurstinessTask(Task):
 
         # assess burstiness 
         print('Assessing burstiness')
-        cursor = range(0,counts_csr.shape[0],1000)
+        cursor = range(0,counts.shape[0],1000)
         terms = []
         term_burstiness = []
         term_burstiness_stats = []
-        for i,term in enumerate(matrix_vocabulary):
+        for i,term in enumerate(vocabulary):
             if i in cursor:
-                print('Term',i,'of',counts_csr.shape[0])
+                print('Term',i,'of',counts.shape[0])
             burstiness = []
             burstiness_stats = []
             for date in entity_dates[term]:
-                index = dates.index(date)
-                min_index = index - 30 if (index-30 >= 0) else 0
-                max_index = index + 30 if (index+30 <= counts_csr.shape[1]) else counts_csr.shape[1]
-                if max_index - min_index > 40:
-                    # if term occurs more often than 10 times
-                    if counts_csr[i,min_index:max_index].sum() > 10:
-                        burstiness.append(counts_csr[i,index] / counts_csr[i,min_index:max_index].mean())
-                        burstiness_stats.append([counts_csr[i,index],counts_csr[i,min_index:max_index].mean()])
+                try:
+                    index = dates.index(date)
+                    min_index = index - 30 if (index-30 >= 0) else 0
+                    max_index = index + 30 if (index+30 <= counts.shape[1]) else counts.shape[1]
+                    if max_index - min_index > 40:
+                        # if term occurs more often than 10 times
+                        if counts[i,min_index:max_index].sum() > 10:
+                            burstiness.append(counts[i,index] / counts[i,min_index:max_index].mean())
+                            burstiness_stats.append([counts[i,index],counts[i,min_index:max_index].mean()])
+                except:
+                    continue
             if len(burstiness) > 0:
                 avg_burstiness = numpy.mean(burstiness)
-                if avg_burstiness > self.burstiness_threshold:
+                if avg_burstiness > float(self.burstiness_threshold):
                     term_burstiness.append(1)
                 else:
                     term_burstiness.append(0)
@@ -113,7 +114,7 @@ class AssessBurstinessTask(Task):
             else:
                 term_burstiness.append(0)
                 term_burstiness_stats.append('Frequency too low')
-        bursty_entities = numpy.array(matrix_vocabulary)[numpy.array(term_burstiness).nonzero()].tolist()
+        bursty_entities = numpy.array(vocabulary)[numpy.array(term_burstiness).nonzero()].tolist()
 
         # write burstiness
         print('Done. Writing to file')
