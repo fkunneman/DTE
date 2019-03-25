@@ -50,6 +50,7 @@ class Event:
             'score':self.score,
             'location':self.location,
             'tweets':[tweet.return_dict() for tweet in self.tweets],
+            'tweets_added':[tweet.return_dict() for tweet in self.tweets_added],
             'cycle':self.cycle,
             'mentions':self.mentions,
             'periodicity':self.periodicity,
