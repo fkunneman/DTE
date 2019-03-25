@@ -19,6 +19,7 @@ class Event:
         self.score = False
         self.location = False
         self.tweets = []
+        self.tweets_added = []
         self.mentions = 1
         self.cycle = False
         self.periodicity = False
@@ -33,6 +34,7 @@ class Event:
         self.score = float(eventdict['score']) if 'score' in eventdict.keys() else False
         self.location = eventdict['location'] if 'location' in eventdict.keys() else False
         self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
+        self.tweets_added = self.import_tweets(eventdict['tweets_added']) if 'tweets_added' in eventdict.keys() else []
         self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
         self.cycle = eventdict['cycle'] if 'cycle' in eventdict.keys() else False 
         self.periodicity = eventdict['periodicity'] if 'periodicity' in eventdict.keys() else False 
@@ -83,8 +85,12 @@ class Event:
         return imported_tweets
 
     def add_tweet(self,tweet):
-        if not set([tweet.id]) & set([x.id for x in self.tweets]):
-            self.tweets.append(tweet)
+        if not set([tweet.id]) & set([x.id for x in self.tweets]) or set([tweet.id]) & set([x.id for x in self.tweets_added]):
+            self.tweets_added.append(tweet)
+
+    def add_tweets(self,tweets):
+        for tweet in tweets:
+            self.add_tweet(tweet)
 
     def add_mention(self,n=1):
         self.mentions += 1
