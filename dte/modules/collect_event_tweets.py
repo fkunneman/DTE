@@ -211,7 +211,7 @@ class CollectEventTweetsDailyTask(Task):
             eventdicts = json.loads(file_in.read())
             for i,ed in enumerate(eventdicts):
                 eventobj = event.Event()
-                eventobj.import_eventdict(ed)
+                eventobj.import_eventdict(ed,txt=False)
                 extended_events.append(eventobj)
                 if eventobj.status == 'novel':
                     if len(list(set_bursty_entities_new & set(list(ed['entities'])))) > 0:
