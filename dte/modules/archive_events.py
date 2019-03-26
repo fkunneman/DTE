@@ -83,7 +83,7 @@ class ArchiveEventsDaily(WorkflowComponent):
     archivedir = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='events',extension='.events',inputparameter='events'), nputFormat(self,format_id='archivedir',extension='.archive',inputparameter='archivedir') ) ]
+        return [ ( InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events'), nputFormat(self,format_id='archivedir',extension='.archive',inputparameter='archivedir') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -104,7 +104,7 @@ class ArchiveEventsTask(Task):
         return self.outputfrominput(inputformat='archivedir', stripextension='.archive', addextension='.archive/events_' + self.archivedate + '.json')
 
     def out_active_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.active.events')
+        return self.outputfrominput(inputformat='events', stripextension='.events.integrated', addextension='.active.events.integrated')
 
     def run(self):
 
@@ -134,5 +134,4 @@ class ArchiveEventsTask(Task):
         out_active_events = [event.return_dict(txt=False) for event in active_events]
         with open(self.out_active_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_active_events,file_out)
-
 
