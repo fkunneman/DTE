@@ -22,7 +22,7 @@ class IntegrateEvents(StandardWorkflowComponent):
     overlap_threshold = Parameter(default = 0.2)
 
     def accepts(self):
-        return InputFormat(self, format_id='events', extension='.enhanced'), InputFormat(self, format_id='events', extension='.integrated'), InputFormat(self, format_id='events', extension='.types')
+        return InputFormat(self, format_id='events', extension='.enhanced'), InputFormat(self, format_id='events', extension='.integrated'), InputFormat(self, format_id='events', extension='.types'), InputFormat(self, format_id='events', extension='.filtered')
 
     def autosetup(self):
         return IntegrateEventsTask
@@ -35,9 +35,11 @@ class IntegrateEventsTask(Task):
     overlap_threshold = Parameter()
 
     def out_integrated_events(self):
-        return self.outputfrominput(inputformat='events', stripextension='.enhanced' if self.in_events().path[-3:] == 'ced' else '.types' if self.in_events().path[-3:] == 'pes' else 'integrated', addextension='.more.integrated' if self.in_events().path[-3:] == 'ted' else '.integrated')
+        return self.outputfrominput(inputformat='events', stripextension='.enhanced' if self.in_events().path[-3:] == 'ced' else '.types' if self.in_events().path[-3:] == 'pes' else 'integrated' if self.in_events().path[-3:] == 'ted' else '.filtered', addextension='.more.integrated' if self.in_events().path[-3:] == 'ted' else '.integrated')
 
     def run(self):
+
+        overlap_threshold = float(self.overlap_threshold)
 
         # read in new events
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
@@ -46,7 +48,7 @@ class IntegrateEventsTask(Task):
         for ed in new_eventdicts:
             eventobj = event.Event()
             eventobj.import_eventdict(ed,txt=False)    
-            new_event_objs.append(eventobj)    
+            new_event_objs.append(eventobj)
         earliest_date = min([event.datetime for event in new_event_objs])
         
         # read in current events
@@ -67,26 +69,25 @@ class IntegrateEventsTask(Task):
         merger.add_events(current_event_objs_candidates)
 
         # merge before integration
-        print('Merging new events before integration; number of events at start:',len(new_event_objs))
-        overlap_threshold = float(self.overlap_threshold)
-        premerger = event_merger.EventMerger()
-        premerger.add_events(new_event_objs)
-        premerger.find_merges(overlap_threshold)
-        new_events_merged = premerger.return_events()
-        print('Done. New events after merge:',len(new_events_merged))
+        # print('Merging new events before integration; number of events at start:',len(new_event_objs))
+        # premerger = event_merger.EventMerger()
+        # premerger.add_events(new_event_objs)
+        # premerger.find_merges(overlap_threshold)
+        # new_events_merged = premerger.return_events()
+        # print('Done. New events after merge:',len(new_events_merged))
 
         # integrate each event into the current ones
-        print('Starting integrating new events; number of current events:',len(current_event_objs))
-        for new_event in new_events_merged:
+        print('Starting integrating new events; number of current events:',len(current_event_objs) + len(current_event_objs_candidates))
+        for new_event in new_event_objs:
             merger.find_merge(new_event,overlap_threshold)
 
         # write merged 
         integrated_events = merger.return_events() + current_event_objs
-        print('Done. Number of events after integration:',len(integrated_events))
-        out_integrated_events = [event.return_dict(txt=False) for event in integrated_events]
+        new_events = merger.return_new_events()
+        print('Done. Number of events after integration:',len(integrated_events),'Number of new events after integration:',len(new_events))
+        out_integrated_events = [event.return_dict(txt=False) for event in integrated_events] + [event.return_dict(txt=False) for event in new_events]
         with open(self.out_integrated_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_integrated_events,file_out)
-
 
 @registercomponent
 class IntegrateEventDir(StandardWorkflowComponent):
@@ -190,7 +191,7 @@ class MergeEventsTask(Task):
         event_objs = []
         for ed in eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed,txt=False)
+            eventobj.import_eventdict(ed)
             event_objs.append(eventobj)
 
         # initialize event merger
@@ -200,9 +201,14 @@ class MergeEventsTask(Task):
         merger.add_events(event_objs)
         merger.find_merges(overlap_threshold)
         events_merged = merger.return_events()
-        print('Done. number of events after merge:',len(events_merged))
+        print('Merging again; current number of events:',len(events_merged))
+        merger2 = event_merger.EventMerger()
+        merger2.add_events(events_merged)
+        merger2.find_merges(overlap_threshold)
+        events_merged_final = merger2.return_events()        
+        print('Done. number of events after merge:',len(events_merged_final))
 
         # write merged 
-        out_merged_events = [event.return_dict(txt=False) for event in events_merged]
+        out_merged_events = [event.return_dict(txt=False) for event in events_merged_final]
         with open(self.out_merged_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_merged_events,file_out)

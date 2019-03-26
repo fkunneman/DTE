@@ -2,6 +2,7 @@
 from luiginlp.engine import Task, StandardWorkflowComponent, InputFormat, InputComponent, registercomponent, InputSlot, Parameter, BoolParameter
 
 import json
+import glob
 
 @registercomponent
 class IndexAllTweets(StandardWorkflowComponent):

@@ -26,12 +26,13 @@ class EventRanker:
             try:
                 event = self.date_entity_event[pair]
                 event.mentions += 1
-                event.add_tweet(tweet)
+                event.add_timex_tweet(tweet)
             except: # event pair not yet seen
                 event = Event()
                 event.set_datetime(pair[0])
                 event.add_entities([pair[1]])
-                event.add_tweet(tweet)
+                event.add_timex_tweet(tweet)
+                event.set_status('novel')
                 self.date_entity_event[pair] = event
                 self.events.append(event)                
 

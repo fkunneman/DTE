@@ -27,10 +27,10 @@ class Tweet:
         self.id = tweetdict['id']
         self.user = tweetdict['user']
         self.datetime = self.import_datetime(tweetdict['datetime'])
-        self.string_refdates, self.refdates = self.import_refdates(tweetdict['refdates']) 
-        self.entities, self.entities_score = self.import_entities(tweetdict['entities']) 
-        self.cityrefs = tweetdict['cityrefs']
         if txt:
+            self.string_refdates, self.refdates = self.import_refdates(tweetdict['refdates']) 
+            self.entities, self.entities_score = self.import_entities(tweetdict['entities']) 
+            self.cityrefs = tweetdict['cityrefs']
             self.text = tweetdict['text']
 
     def import_twiqsdict(self,twiqsdict):
@@ -49,12 +49,12 @@ class Tweet:
             'id':self.id, 
             'user':self.user, 
             'datetime':str(self.datetime),
-            'refdates':dict([(x[0],str(x[1])) for x in self.string_refdates]),
-            'entities':dict(self.entities_score),
-            'cityrefs':self.cityrefs
         }
         if txt:
-            tweetdict['text'] = self.text, 
+            tweetdict['refdates'] = dict([(x[0],str(x[1])) for x in self.string_refdates])
+            tweetdict['entities'] = dict(self.entities_score)
+            tweetdict['cityrefs'] = self.cityrefs
+            tweetdict['text'] = self.text 
         return tweetdict
 
     def set_id(self,tid):

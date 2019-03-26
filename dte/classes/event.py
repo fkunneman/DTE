@@ -26,6 +26,7 @@ class Event:
         self.predicted = False
         self.anticipointment = False
         self.eventtype = False
+        self.status = False
 
     def import_eventdict(self,eventdict,txt=True):
         self.mongo_id = eventdict['mongo_id'] if 'mongo_id' in eventdict.keys() else False
@@ -38,7 +39,8 @@ class Event:
         self.periodicity = eventdict['periodicity'] if 'periodicity' in eventdict.keys() else False 
         self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
-        self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False 
+        self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False
+        self.status = eventdict['status'] if 'status' in eventdict.keys() else 'stable'
         if txt:
             self.tweets = self.import_tweets(eventdict['tweets'],txt=True) if 'tweets' in eventdict.keys() else []
             self.tweets_added = self.import_tweets(eventdict['tweets_added'],txt=True) if 'tweets_added' in eventdict.keys() else []
@@ -59,13 +61,14 @@ class Event:
             'predicted':self.predicted,
             'anticipointment':self.anticipointment,
             'eventtype':self.eventtype,
-            if txt:
-                'tweets':[tweet.return_dict(txt=True) for tweet in self.tweets],
-                'tweets_added':[tweet.return_dict(txt=True) for tweet in self.tweets_added],
-            else:
-                'tweets':[tweet.return_dict(txt=False) for tweet in self.tweets],
-                'tweets_added':[tweet.return_dict(txt=False) for tweet in self.tweets_added],
+            'status':self.status
         }
+        if txt:
+            eventdict['tweets'] = [tweet.return_dict(txt=True) for tweet in self.tweets]
+            eventdict['tweets_added'] = [tweet.return_dict(txt=True) for tweet in self.tweets_added]
+        else:
+            eventdict['tweets'] = [tweet.return_dict(txt=False) for tweet in self.tweets]
+            eventdict['tweets_added'] = [tweet.return_dict(txt=False) for tweet in self.tweets_added]
         return eventdict
 
     def import_datetime(self,datetime):
@@ -93,6 +96,10 @@ class Event:
             imported_tweets.append(tweet)
         return imported_tweets
 
+    def add_timex_tweet(self,tweet):
+        if not set([tweet.id]) & set([x.id for x in self.tweets]) or set([tweet.id]) & set([x.id for x in self.tweets_added]):
+            self.tweets.append(tweet)
+
     def add_tweet(self,tweet):
         if not set([tweet.id]) & set([x.id for x in self.tweets]) or set([tweet.id]) & set([x.id for x in self.tweets_added]):
             self.tweets_added.append(tweet)
@@ -110,14 +117,18 @@ class Event:
     def set_periodicity(self,periodicity): # dict with periodic pattern, score and editions, if available
         self.periodicity = periodicity
 
+    def set_status(self,status):
+        self.status = status
+
     def merge(self,event):
         self.score = max(self.score,event.score)
         self.entities = list(set(self.entities + event.entities))
         tweetids = [tweet.id for tweet in self.tweets]
-        self.tweets.extend([tweet for tweet in event.tweets if not tweet.id in tweetids])
+        self.tweets.extend([tweet for tweet in event.tweets if not set([tweet.id]) & set([x.id for x in self.tweets]) or set([tweet.id]) & set([x.id for x in self.tweets_added])])
+        self.tweets_added.extend([tweet for tweet in event.tweets_added if not set([tweet.id]) & set([x.id for x in self.tweets]) or set([tweet.id]) & set([x.id for x in self.tweets_added])]) 
         self.mentions = len(self.tweets)
         self.resolve_overlap_entities()
-        self.order_entities()
+        # self.order_entities()
         self.rank_tweets()
         if self.location == False and event.location != False:
             self.location = event.location
@@ -131,8 +142,8 @@ class Event:
         if not (self.predicted and event.predicted): 
             self.predicted = False
         elif not (self.predicted) and event.predicted:
-            self.predicted = event.predicted 
-            
+            self.predicted = event.predicted
+        self.status = 'changed'            
 
     def entity_overlap(self,e1,e2):
         if set(e1.split()) & set(e2.split()):

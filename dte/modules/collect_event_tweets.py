@@ -162,7 +162,7 @@ class CollectEventTweetsDaily(WorkflowComponent):
     date = Parameter() 
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.burstiness.txt',inputparameter='entity_burstiness'), InputFormat(self,format_id='entity_burstiness_new',extension='.burstiness.txt',inputparameter='entity_burstiness_new') ) ]
+        return [ ( InputFormat(self,format_id='tweetdir',extension='.tweets',inputparameter='tweetdir'), InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events'), InputFormat(self,format_id='entity_burstiness',extension='.burstiness.txt',inputparameter='entity_burstiness'), InputFormat(self,format_id='entity_burstiness_new',extension='.burstiness.txt',inputparameter='entity_burstiness_new') ) ]
 
     def setup(self, workflow, input_feeds):
 
@@ -184,7 +184,7 @@ class CollectEventTweetsDailyTask(Task):
     date = Parameter()
 
     def out_more_tweets(self):
-        return self.outputfrominput(inputformat='events', stripextension='.events', addextension='.more_tweets.events')
+        return self.outputfrominput(inputformat='events', stripextension='.events.integrated', addextension='.more_tweets.events.integrated')
 
     def run(self):
 
@@ -202,6 +202,9 @@ class CollectEventTweetsDailyTask(Task):
 
         # read in events
         term_events = defaultdict(list)
+        term_novel_events = defaultdict(list)
+        date_dt = datetime.datetime(int(date[:4]),int(date[4:6]),int(date[6:8]))
+        event_bound = date_dt - datetime.timedelta(days=100)
         print('Reading in events')
         extended_events = []
         with open(self.in_events().path, 'r', encoding = 'utf-8') as file_in:
@@ -210,9 +213,14 @@ class CollectEventTweetsDailyTask(Task):
                 eventobj = event.Event()
                 eventobj.import_eventdict(ed)
                 extended_events.append(eventobj)
-                if len(list(set_bursty_entities & set(list(ed['entities'])))) > 0:
-                    for term in list(set_bursty_entities & set(list(ed['entities']))):
-                        term_events[term].append(eventobj)
+                if eventobj.status == 'novel':
+                    if len(list(set_bursty_entities_new & set(list(ed['entities'])))) > 0:
+                        for term in list(set_bursty_entities_new & set(list(ed['entities']))):
+                            term_novel_events[term].append(eventobj)
+                if eventobj.datetime >= event_bound:
+                    if len(list(set_bursty_entities & set(list(ed['entities'])))) > 0:
+                        for term in list(set_bursty_entities & set(list(ed['entities']))):
+                            term_events[term].append(eventobj)
 
         date_entity_events = defaultdict(lambda : defaultdict(list))
         for entity in bursty_entities_new_unique:
@@ -237,11 +245,33 @@ class CollectEventTweetsDailyTask(Task):
                         date_entity_events[date_str][entity].append(ev)
                         cursor += datetime.timedelta(days=1)
 
+        for entity in new_bursty_entities:
+            # for each event
+            if len(term_novel_events[entity]) == 0:
+                continue
+            else:
+                for i,ev in enumerate(term_novel_events[entity]):
+                    if i == 0:
+                        minus = 100
+                    else:
+                        minus = 100 if ((ev.datetime - term_novel_events[entity][i-1].datetime).days > 199 or (ev.datetime - term_novel_events[entity][i-1].datetime).days < 3) else ((ev.datetime - term_novel_events[entity][i-1].datetime).days) / 2
+                    if i == len(term_novel_events[entity])-1:
+                        plus = 100
+                    else:
+                        plus = 100 if ((term_novel_events[entity][i-1].datetime - ev.datetime).days > 199 or (term_novel_events[entity][i-1].datetime - ev.datetime).days < 3) else ((term_novel_events[entity][i-1].datetime - ev.datetime).days) / 2
+                    first = ev.datetime - datetime.timedelta(days=minus)
+                    last = ev.datetime + datetime.timedelta(days=plus)
+                    cursor = first
+                    while cursor <= last:
+                        date_str = ''.join(str(cursor).split()[0].split('-'))
+                        date_entity_events[date_str][entity].append(ev)
+                        cursor += datetime.timedelta(days=1)
+                        
         # read in tweets
         print('Collecting additional tweets')
         dates = list(date_entity_events.keys())
         months = list(set([d[:6] for d in dates]))
-        tweetsubdirs = sorted([ subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ])
+        tweetsubdirs = sorted([subdir for subdir in glob.glob(self.in_tweetdir().path + '/*') ])
         entity_tweets = defaultdict(list)
         first = True
         for tweetsubdir in tweetsubdirs:
@@ -263,6 +293,7 @@ class CollectEventTweetsDailyTask(Task):
                             for entity in candidate_entities:
                                 for ev in date_entity_events[datestr][entity]:
                                     ev.add_tweets(entity_tweets[entity])
+                                    ev.status = 'changed'
                             cursordate = datestr
                             candidate_entities = list(date_entity_events[datestr].keys())
                             set_candidate_entities = set(candidate_entities)
@@ -271,7 +302,7 @@ class CollectEventTweetsDailyTask(Task):
                         with open(tweetfile, 'r', encoding = 'utf-8') as file_in:
                             tweetdicts = json.loads(file_in.read())
                         for td in tweetdicts:
-                            if datestr == date:
+                            if datestr == self.date:
                                 match = set_bursty_entities_new
                             else:
                                 match = set_candidate_entities
@@ -281,8 +312,14 @@ class CollectEventTweetsDailyTask(Task):
                             for term in list(match & set(list(td['entities'].keys()))):
                                 entity_tweets[term].append(tweetobj)
 
+        # add final tweets
+        for entity in candidate_entities:
+            for ev in date_entity_events[datestr][entity]:
+                ev.add_tweets(entity_tweets[entity])
+                ev.status = 'changed'
+            
         # write to file
         print('Writing new events')
-        out_extended_events = [ev.return_dict() for ev in extended_events]
+        out_extended_events = [ev.return_dict(txt=False) for ev in extended_events]
         with open(self.out_more_tweets().path,'w',encoding='utf-8') as file_out:
             json.dump(out_extended_events,file_out)

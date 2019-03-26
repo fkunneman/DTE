@@ -26,17 +26,14 @@ class EventDeduplicator:
 
     def deduplicate_events(self,similarity_threshold):
         # set big documents
-#        print('Fitting tfidf')
         self.set_tfidf()
         # sort by date
         dates = sorted(list(set([event.datetime.date() for event in self.events])))
         new_events = []
         for date in dates:
- #           print('Date:',date)
             candidates = self.return_events_date(date)
             index_candidates = [[i,c] for i,c in enumerate(candidates)]
             event_similarity = self.set_event_similarity(candidates)
-  #          print('Event entities before merge:','   ---   '.join([', '.join(x.entities) for x in candidates]).encode('utf-8'))
             merged = [index_candidates[0]]
             for index2, event2 in index_candidates[1:]:
                 similar = False
@@ -47,7 +44,6 @@ class EventDeduplicator:
                         break
                 if not similar:
                     merged.append([index2,event2])
-   #         print('AFTER','   ---   '.join([', '.join(x[1].entities) for x in merged]).encode('utf-8'))
             new_events.extend([x[1] for x in merged])
         self.events = new_events
 

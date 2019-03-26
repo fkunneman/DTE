@@ -45,7 +45,7 @@ class ArchiveEventsTask(Task):
         self.setup_output_dir(self.out_archivedir().path)
 
         # read events
-        datebound = datetime.now() - datetime.timedelta(days=100)
+        datebound = datetime.datetime.now() - datetime.timedelta(days=100)
         date_events = defaultdict(list)
         active_events = []
         print('Reading events')

@@ -3,12 +3,16 @@ class EventMerger:
 
     def __init__(self):
         self.events = []
+        self.new_events = []
 
     def add_events(self,events):
         self.events.extend(events)
 
     def return_events(self):
         return self.events
+
+    def return_new_events(self):
+        return self.new_events
 
     def find_merge(self,event,overlap_threshold):
         candidates = self.return_events_date(event.datetime.date())
@@ -19,7 +23,7 @@ class EventMerger:
                 overlap = True
                 break
         if not overlap:
-            self.events.append(event)
+            self.new_events.append(event)
 
     def find_merges(self,overlap_threshold):
         # sort by date
