@@ -27,36 +27,44 @@ class Event:
         self.anticipointment = False
         self.eventtype = False
 
-    def import_eventdict(self,eventdict):
+    def import_eventdict(self,eventdict,txt=True):
         self.mongo_id = eventdict['mongo_id'] if 'mongo_id' in eventdict.keys() else False
         self.datetime = self.import_datetime(eventdict['datetime']) if 'datetime' in eventdict.keys() else False 
         self.entities = eventdict['entities'] if 'entities' in eventdict.keys() else False
         self.score = float(eventdict['score']) if 'score' in eventdict.keys() else False
         self.location = eventdict['location'] if 'location' in eventdict.keys() else False
-        self.tweets = self.import_tweets(eventdict['tweets']) if 'tweets' in eventdict.keys() else []
-        self.tweets_added = self.import_tweets(eventdict['tweets_added']) if 'tweets_added' in eventdict.keys() else []
         self.mentions = int(eventdict['mentions']) if 'mentions' in eventdict.keys() else False
         self.cycle = eventdict['cycle'] if 'cycle' in eventdict.keys() else False 
         self.periodicity = eventdict['periodicity'] if 'periodicity' in eventdict.keys() else False 
         self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
         self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False 
+        if txt:
+            self.tweets = self.import_tweets(eventdict['tweets'],txt=True) if 'tweets' in eventdict.keys() else []
+            self.tweets_added = self.import_tweets(eventdict['tweets_added'],txt=True) if 'tweets_added' in eventdict.keys() else []
+        else:
+            self.tweets = self.import_tweets(eventdict['tweets'],txt=False) if 'tweets' in eventdict.keys() else []
+            self.tweets_added = self.import_tweets(eventdict['tweets_added'],txt=False) if 'tweets_added' in eventdict.keys() else []
 
-    def return_dict(self):
+    def return_dict(self,txt=True):
         eventdict = {
             'mongo_id':self.mongo_id,
             'datetime':str(self.datetime),
             'entities':self.entities,
             'score':self.score,
             'location':self.location,
-            'tweets':[tweet.return_dict() for tweet in self.tweets],
-            'tweets_added':[tweet.return_dict() for tweet in self.tweets_added],
             'cycle':self.cycle,
             'mentions':self.mentions,
             'periodicity':self.periodicity,
             'predicted':self.predicted,
             'anticipointment':self.anticipointment,
-            'eventtype':self.eventtype
+            'eventtype':self.eventtype,
+            if txt:
+                'tweets':[tweet.return_dict(txt=True) for tweet in self.tweets],
+                'tweets_added':[tweet.return_dict(txt=True) for tweet in self.tweets_added],
+            else:
+                'tweets':[tweet.return_dict(txt=False) for tweet in self.tweets],
+                'tweets_added':[tweet.return_dict(txt=False) for tweet in self.tweets_added],
         }
         return eventdict
 
@@ -77,11 +85,11 @@ class Event:
     def set_predicted(self):
         self.predicted = True
 
-    def import_tweets(self,tweets):
+    def import_tweets(self,tweets,txt=True):
         imported_tweets = []
         for tweetdict in tweets:
             tweet = Tweet()
-            tweet.import_tweetdict(tweetdict)
+            tweet.import_tweetdict(tweetdict,txt=txt)
             imported_tweets.append(tweet)
         return imported_tweets
 

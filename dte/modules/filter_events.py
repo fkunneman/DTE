@@ -45,7 +45,7 @@ class FilterEventsTask(Task):
         event_objs = []
         for ed in eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed)
+            eventobj.import_eventdict(ed,txt=False)
             event_objs.append(eventobj)
 
         print('Reading in citylist')
@@ -62,6 +62,6 @@ class FilterEventsTask(Task):
         print('Done. number of events after filter:',len(events_filtered))        
 
         # write filter
-        out_filtered_events = [event.return_dict() for event in events_filtered]
+        out_filtered_events = [event.return_dict(txt=False) for event in events_filtered]
         with open(self.out_filtered_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_filtered_events,file_out)

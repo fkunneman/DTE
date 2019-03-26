@@ -45,7 +45,7 @@ class IntegrateEventsTask(Task):
         new_event_objs = []
         for ed in new_eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed)    
+            eventobj.import_eventdict(ed,txt=False)    
             new_event_objs.append(eventobj)    
         earliest_date = min([event.datetime for event in new_event_objs])
         
@@ -56,7 +56,7 @@ class IntegrateEventsTask(Task):
         current_event_objs_candidates = []
         for ed in current_eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed)   
+            eventobj.import_eventdict(ed,txt=False)   
             if eventobj.datetime >= earliest_date:
                 current_event_objs_candidates.append(eventobj)
             else:
@@ -83,7 +83,7 @@ class IntegrateEventsTask(Task):
         # write merged 
         integrated_events = merger.return_events() + current_event_objs
         print('Done. Number of events after integration:',len(integrated_events))
-        out_integrated_events = [event.return_dict() for event in integrated_events]
+        out_integrated_events = [event.return_dict(txt=False) for event in integrated_events]
         with open(self.out_integrated_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_integrated_events,file_out)
 
@@ -190,7 +190,7 @@ class MergeEventsTask(Task):
         event_objs = []
         for ed in eventdicts:
             eventobj = event.Event()
-            eventobj.import_eventdict(ed)
+            eventobj.import_eventdict(ed,txt=False)
             event_objs.append(eventobj)
 
         # initialize event merger
@@ -200,9 +200,9 @@ class MergeEventsTask(Task):
         merger.add_events(event_objs)
         merger.find_merges(overlap_threshold)
         events_merged = merger.return_events()
-        print('Done. number of events after merge:',len(events_merged))        
+        print('Done. number of events after merge:',len(events_merged))
 
         # write merged 
-        out_merged_events = [event.return_dict() for event in events_merged]
+        out_merged_events = [event.return_dict(txt=False) for event in events_merged]
         with open(self.out_merged_events().path,'w',encoding='utf-8') as file_out:
             json.dump(out_merged_events,file_out)

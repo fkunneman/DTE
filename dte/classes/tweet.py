@@ -22,15 +22,16 @@ class Tweet:
         self.entities_score = []
         self.cityrefs = []
 
-    def import_tweetdict(self,tweetdict):
+    def import_tweetdict(self,tweetdict,txt=True):
         keys = tweetdict.keys()
         self.id = tweetdict['id']
         self.user = tweetdict['user']
-        self.text = tweetdict['text']
         self.datetime = self.import_datetime(tweetdict['datetime'])
         self.string_refdates, self.refdates = self.import_refdates(tweetdict['refdates']) 
         self.entities, self.entities_score = self.import_entities(tweetdict['entities']) 
-        self.cityrefs = tweetdict['cityrefs'] 
+        self.cityrefs = tweetdict['cityrefs']
+        if txt:
+            self.text = tweetdict['text']
 
     def import_twiqsdict(self,twiqsdict):
         month = {"Jan" : "01", "Feb" : "02", "Mar" : "03", "Apr" : "04", "May" : "05", "Jun" : "06", "Jul" : "07", 
@@ -43,16 +44,17 @@ class Tweet:
         timefields = [int(f) for f in dt[2].split(':')]
         self.datetime = datetime.datetime(int(dt[3]), int(month[dt[0]]), int(dt[1]), timefields[0], timefields[1], timefields[2])
 
-    def return_dict(self):
+    def return_dict(self,txt=True):
         tweetdict = {
             'id':self.id, 
             'user':self.user, 
-            'text':self.text, 
             'datetime':str(self.datetime),
             'refdates':dict([(x[0],str(x[1])) for x in self.string_refdates]),
             'entities':dict(self.entities_score),
             'cityrefs':self.cityrefs
         }
+        if txt:
+            tweetdict['text'] = self.text, 
         return tweetdict
 
     def set_id(self,tid):
