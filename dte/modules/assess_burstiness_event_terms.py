@@ -29,7 +29,7 @@ class AssessBurstiness(WorkflowComponent):
     burstiness_threshold = IntParameter()
 
     def accepts(self):
-        return [ ( InputFormat(self,format_id='entity_counts',extension='.counts.npz',inputparameter='entity_counts'), InputFormat(self,format_id='dates',extension='.counts_dates',inputparameter='dates'), InputFormat(self,format_id='vocabulary',extension='.counts_vocabulary',inputparameter='vocabulary'), InputFormat(self,format_id='events',extension='.events',inputparameter='events') ) ]
+        return [ ( InputFormat(self,format_id='entity_counts',extension='.counts.npz',inputparameter='entity_counts'), InputFormat(self,format_id='dates',extension='.counts_dates',inputparameter='dates'), InputFormat(self,format_id='vocabulary',extension='.counts_vocabulary',inputparameter='vocabulary'), InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events') ) ]
 
     def setup(self, workflow, input_feeds):
 

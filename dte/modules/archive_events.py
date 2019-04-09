@@ -81,19 +81,21 @@ class ArchiveEventsDaily(WorkflowComponent):
 
     events = Parameter()
     archivedir = Parameter()
+
+    archivedate = Parameter()
     
     def accepts(self):
-        return [ ( InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events'), nputFormat(self,format_id='archivedir',extension='.archive',inputparameter='archivedir') ) ]
+        return [ ( InputFormat(self,format_id='events',extension='.events.integrated',inputparameter='events'), InputFormat(self,format_id='archivedir',extension='.archive',inputparameter='archivedir') ) ]
 
     def setup(self, workflow, input_feeds):
 
-        daily_event_archiver = workflow.new_task('archive_events_daily', ArchiveEventsDailyTask, autopass=False)
+        daily_event_archiver = workflow.new_task('archive_events_daily', ArchiveEventsDailyTask, autopass=False, archivedate=self.archivedate)
         daily_event_archiver.in_events = input_feeds['events']
         daily_event_archiver.in_archivedir = input_feeds['archivedir']
 
-        return event_archiver
+        return daily_event_archiver
 
-class ArchiveEventsTask(Task):
+class ArchiveEventsDailyTask(Task):
 
     in_events = InputSlot()
     in_archivedir = InputSlot()
@@ -117,7 +119,7 @@ class ArchiveEventsTask(Task):
             eventdicts = json.loads(file_in.read())
             for i,ed in enumerate(eventdicts):
                 eventobj = event.Event()
-                eventobj.import_eventdict(ed)
+                eventobj.import_eventdict(ed,txt=False)
                 if eventobj.datetime == date:
                     archive_events.append(eventobj)
                 else:
