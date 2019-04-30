@@ -40,7 +40,7 @@ class Event:
         self.predicted = eventdict['predicted'] if 'predicted' in eventdict.keys() else False
         self.anticipointment = float(eventdict['anticipointment']) if 'anticipointment' in eventdict.keys() else False
         self.eventtype = eventdict['eventtype'] if 'eventtype' in eventdict.keys() else False
-        self.status = eventdict['status'] if 'status' in eventdict.keys() else 'stable'
+        self.eventtype_scores = eventdict['eventtype_scores'] if 'eventtype_scores' in eventdict.keys() else False
         if txt:
             self.tweets = self.import_tweets(eventdict['tweets'],txt=True) if 'tweets' in eventdict.keys() else []
             self.tweets_added = self.import_tweets(eventdict['tweets_added'],txt=True) if 'tweets_added' in eventdict.keys() else []
@@ -61,6 +61,7 @@ class Event:
             'predicted':self.predicted,
             'anticipointment':self.anticipointment,
             'eventtype':self.eventtype,
+            'eventtype_scores':self.eventtype_scores,
             'status':self.status
         }
         if txt:
