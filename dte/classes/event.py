@@ -26,6 +26,7 @@ class Event:
         self.predicted = False
         self.anticipointment = False
         self.eventtype = False
+        self.eventtype_scores = False
         self.status = False
 
     def import_eventdict(self,eventdict,txt=True):
